@@ -1,0 +1,132 @@
+{
+    "name": "PICK_Default",
+    "run_id":"test",
+    "n_gpu": 2,
+
+    "model_arch": {
+        "type": "PICKModel",
+        "args": {
+            "embedding_kwargs":{
+                "num_embeddings": -1,
+                "embedding_dim": 512
+            },
+            "encoder_kwargs":{
+                "char_embedding_dim":-1,
+                "out_dim": 512,
+                "nheaders": 4,
+                "nlayers": 3,
+                "feedforward_dim": 1024,
+                "dropout": 0.1,
+                "image_encoder": "resnet50",
+                "roi_pooling_mode": "roi_align",
+                "roi_pooling_size": [7,7]
+            },
+            "graph_kwargs":{
+                "in_dim":-1,
+                "out_dim":-1,
+                "eta": 1,
+                "gamma": 1,
+                "learning_dim": 128,
+                "num_layers": 2
+            },
+            "decoder_kwargs":{
+                "bilstm_kwargs":{
+                    "input_size": -1,
+                     "hidden_size": 512,
+                     "num_layers": 2,
+                     "dropout": 0.1,
+                     "bidirectional": true,
+                     "batch_first": true
+
+                },
+                "mlp_kwargs":{
+                     "in_dim": -1,
+                     "out_dim": -1,
+                    "dropout": 0.1
+                },
+                "crf_kwargs":{
+                    "num_tags":-1
+                }
+            }
+        }
+    },
+
+    "train_dataset": {
+        "type": "PICKDataset",
+        "args": {
+            "files_name":"/home/Wen/data/code/PICK/PICK-pytorch/data/data_examples_root/train_samples_list.csv",
+            "boxes_and_transcripts_folder":"boxes_and_transcripts",
+            "images_folder":"images",
+            "entities_folder":"entities",
+            "iob_tagging_type":"box_and_within_box_level",
+            "resized_image_size": [480, 960],
+            "ignore_error": false
+        }
+    },
+    "validation_dataset": {
+        "type": "PICKDataset",
+        "args": {
+            "files_name":"/home/Wen/data/code/PICK/PICK-pytorch/data/data_examples_root/train_samples_list.csv",
+            "boxes_and_transcripts_folder":"boxes_and_transcripts",
+            "images_folder":"images",
+            "entities_folder":"entities",
+            "iob_tagging_type":"box_and_within_box_level",
+            "resized_image_size": [480, 960],
+            "ignore_error": false
+        }
+    },
+    "train_data_loader": {
+        "type": "DataLoader",
+        "args":{
+            "batch_size": 4,
+            "shuffle": true,
+            "drop_last": true,
+            "num_workers": 8,
+            "pin_memory":true
+        }
+    },
+    "val_data_loader": {
+          "type": "DataLoader",
+          "args":{
+              "batch_size": 4,
+              "shuffle": false,
+              "drop_last": false,
+              "num_workers": 8,
+              "pin_memory":true
+          }
+      },
+
+    "optimizer": {
+          "type": "Adam",
+          "args":{
+              "lr": 0.0001,
+              "weight_decay": 0,
+              "amsgrad": true
+          }
+    },
+    "lr_scheduler": {
+        "type": "StepLR",
+        "args": {
+            "step_size": 30,
+            "gamma": 0.1
+        }
+    },
+
+    "trainer": {
+        "epochs": 100,
+        "gl_loss_lambda": 0.01,
+        "log_step_interval": 10,
+        "val_step_interval": 50,
+
+        "save_dir": "saved/",
+        "save_period": 20,
+        "log_verbosity": 2,
+
+        "monitor": "max overall-mEF",
+        "monitor_open": true,
+        "early_stop": 40,
+
+        "anomaly_detection": false,
+        "tensorboard": false
+    }
+}

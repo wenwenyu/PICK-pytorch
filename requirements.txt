@@ -1,0 +1,10 @@
+torchvision==0.6.1
+tabulate==0.8.7
+overrides==3.0.0
+opencv_python==4.3.0.36
+numpy==1.16.4
+pandas==1.0.5
+allennlp==1.0.0
+torchtext==0.6.0
+tqdm==4.47.0
+torch==1.5.1
