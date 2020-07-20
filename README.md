@@ -19,7 +19,8 @@ our original implementation.
 	    * [Training custom datasets](training-custom-datasets)
 		* [Checkpoints](#checkpoints)
         * [Tensorboard Visualization](#tensorboard-visualization)
-	* [TODOs](#todos)
+	* [Results on Train Ticket](#results-on-train-ticket)
+    * [TODOs](#todos)
     * [Citations](#citations)
 	* [License](#license)
 	* [Acknowledgements](#acknowledgements)
@@ -91,6 +92,7 @@ You can test from a previously saved checkpoint by:
 ### Training custom datasets
 You can train you own datasets following the steps outlined below.
 1. Prepare the correct format of files as provided in `data` folder.
+   * Please see [data/README.md](data/README.md) an instruction how to prepare the data in required format for PICK.
 2. Modify `train_dataset` and  `validation_dataset` args in `config.json` file, including `files_name`, 
 `images_folder`, `boxes_and_transcripts_folder`, `entities_folder`, `iob_tagging_type` and `resized_image_size`. 
 3. Modify `Entities_list` in `utils/entities_list.py` file according to the entity type of your dataset.
@@ -146,6 +148,9 @@ By default, values of loss  will be logged. If you need more visualizations, use
 `add_something()` methods in this project are basically wrappers for those of `tensorboardX.SummaryWriter` and `torch.utils.tensorboard.SummaryWriter` modules. 
 
 **Note**: You don't have to specify current steps, since `WriterTensorboard` class defined at `logger/visualization.py` will track current steps.
+
+## Results on Train Ticket
+![example](assets/example.png)
 
 ## TODOs
 - [ ] Multi-node multi-gpu setup (DistributedDataParallel)
