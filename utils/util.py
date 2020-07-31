@@ -106,7 +106,7 @@ def texts_to_union_texts(texts, mask):
         if valid_length > max_seq_length:
             max_seq_length = valid_length
 
-    max_seq_length = documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
+    # max_seq_length = documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
     # (B, N*T)
     union_texts = union_texts[:, :max_seq_length]
 
@@ -139,7 +139,7 @@ def iob_tags_to_union_iob_tags(iob_tags, mask):
         if valid_length > max_seq_length:
             max_seq_length = valid_length
 
-    max_seq_length = documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
+    # max_seq_length = documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
     # (B, N*T)
     union_iob_tags = union_iob_tags[:, :max_seq_length]
 

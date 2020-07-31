@@ -11,8 +11,8 @@ our original implementation.
     * [Introduction](#introduction)
 	* [Requirements](#requirements)
 	* [Usage](#usage)
-		* [Training with config files](#training-with-config-files)
-		* [Using Multiple GPU](#using-multiple-gpu)
+		* [Distributed training with config files](#distributed-training-with-config-files)
+		* [Using Multiple Node](#using-multiple-node)
 		* [Resuming from checkpoints](#resuming-from-checkpoints)
 		* [Testing from checkpoints](#testing-from-checkpoints)
 	* [Customization](#customization)
@@ -52,30 +52,56 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Training with config files
-Modify the configurations in `config.json` files, then run:
+### Distributed training with config files
+Modify the configurations in `config.json` and `dist_train.sh` files, then run:
+```bash
+bash dist_train.sh
+```
+The application will be launched via `launch.py` on a 4 GPU node with one process per GPU (recommend).
 
-  ```
-  python train.py --config config.json
-  ```
+This is equivalent to
+```bash
+  python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=4 \
+--master_addr=127.0.0.1 --master_port=5555 \
+train.py -c config.json -d 1,2,3,4 --local_world_size 4
+```
+and is equivalent to specify indices of available GPUs by `CUDA_VISIBLE_DEVICES` instead of `-d` args
+```bash
+CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=4 \
+--master_addr=127.0.0.1 --master_port=5555 \
+train.py -c config.json --local_world_size 4
+```
+Similarly, it can be launched with a single process that spans all 4 GPUs (if node has 4 available GPUs) 
+using (don't recommend):
+```bash
+CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=1 \
+--master_addr=127.0.0.1 --master_port=5555 \
+train.py -c config.json --local_world_size 1
+```
+### Using Multiple Node
+You can enable multi-node multi-GPU training by setting `nnode` and `node_rank` args of the commandline line on every node.
+e.g., 2 nodes 4 gpus run as follows
   
-### Using Multiple GPU
-You can enable one-node multi-GPU training by setting `n_gpu` argument of the config file to larger number.
-If configured to use smaller number of gpu than available, first n devices will be used by default.
-Specify indices of available GPUs by cuda environmental variable.
+  Node 1, ip: 192.168.0.10, then run on node 1 as follows
   ```
-  python train.py --device 2,3 -c config.json
+CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnode=2 --node_rank=0 --nproc_per_node=4 \
+--master_addr=192.168.0.10 --master_port=5555 \
+train.py -c config.json --local_world_size 4  
+```
+   Node 2, ip: 192.168.0.15, then run on node 2 as follows
   ```
-  This is equivalent to
-  ```
-  CUDA_VISIBLE_DEVICES=2,3 python train.py -c config.py
-  ```
+CUDA_VISIBLE_DEVICES=2,4,6,7 python -m torch.distributed.launch --nnode=2 --node_rank=1 --nproc_per_node=4 \
+--master_addr=192.168.0.10 --master_port=5555 \
+train.py -c config.json --local_world_size 4  
+```
   
 ### Resuming from checkpoints
 You can resume from a previously saved checkpoint by:
 
   ```
-  python train.py --resume path/to/checkpoint -d 2,3
+  python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=4 \
+--master_addr=127.0.0.1 --master_port=5555 \
+train.py -d 1,2,3,4 --local_world_size 4 --resume path/to/checkpoint
   ```
   
 ### Testing from checkpoints
@@ -153,9 +179,8 @@ By default, values of loss  will be logged. If you need more visualizations, use
 ![example](assets/example.png)
 
 ## TODOs
-- [ ] Multi-node multi-gpu setup (DistributedDataParallel)
 - [ ] Dataset cache mechanism to speed up training loop
-- [x] One-node multi-gpu setup (DataParallel)
+- [x] Multi-node multi-gpu setup (DistributedDataParallel)
 
 ## Citations
 If you find this code useful please cite our [paper](https://arxiv.org/abs/2004.07464):

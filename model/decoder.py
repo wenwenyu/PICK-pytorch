@@ -98,8 +98,8 @@ class BiLSTMLayer(nn.Module):
         self.lstm.flatten_parameters()
         output, _ = self.lstm(packed_x)
         output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True,
-                                                     padding_value=keys_vocab_cls.stoi['<pad>'],
-                                                     total_length=documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN)
+                                                     padding_value=keys_vocab_cls.stoi['<pad>'])
+        # total_length=documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
         output = output[invert_order]
         logits = self.mlp(output)
         # (B, N*T, out_dim)
@@ -134,9 +134,9 @@ class UnionLayer(nn.Module):
         doc_seq_len = length.sum(dim=-1)
 
         # dynamic calculate max document's union sequences length, only used to one gpus training mode.
-        # max_doc_seq_len = doc_seq_len.max()
+        max_doc_seq_len = doc_seq_len.max()
         # static calculate max_doc_seq_len
-        max_doc_seq_len = documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
+        # max_doc_seq_len = documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
 
         # init x, mask, tags value
         # (B, N*T, D)

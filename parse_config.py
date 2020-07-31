@@ -8,6 +8,9 @@ from pathlib import Path
 from functools import reduce, partial
 from operator import getitem
 from datetime import datetime
+
+import torch.distributed as dist
+
 from logger import setup_logging
 from utils import read_json, write_json
 
@@ -26,32 +29,33 @@ class ConfigParser:
         self._config = _update_config(config, modification)
         self.resume = resume
 
-        # set save_dir where trained model and log will be saved.
-        save_dir = Path(self.config['trainer']['save_dir'])
+        if self.config['local_rank'] == 0: # only local master process create saved output dir
+            # set save_dir where trained model and log will be saved.
+            save_dir = Path(self.config['trainer']['save_dir'])
 
-        exper_name = self.config['name']
-        if run_id is None:  # use timestamp as default run-id
-            run_id = datetime.now().strftime(r'%m%d_%H%M%S')
-        else:
-            run_id = run_id + '_' + datetime.now().strftime(r'%m%d_%H%M%S')
-        self._save_dir = save_dir / 'models' / exper_name / run_id
-        self._log_dir = save_dir / 'log' / exper_name / run_id
+            exper_name = self.config['name']
+            if run_id is None:  # use timestamp as default run-id
+                run_id = datetime.now().strftime(r'%m%d_%H%M%S')
+            else:
+                run_id = run_id + '_' + datetime.now().strftime(r'%m%d_%H%M%S')
+            self._save_dir = save_dir / 'models' / exper_name / run_id
+            self._log_dir = save_dir / 'log' / exper_name / run_id
 
-        # make directory for saving checkpoints and log.
-        exist_ok = run_id == ''
-        self.save_dir.mkdir(parents=True, exist_ok=exist_ok)
-        self.log_dir.mkdir(parents=True, exist_ok=exist_ok)
+            # make directory for saving checkpoints and log.
+            exist_ok = run_id == ''
+            self.save_dir.mkdir(parents=True, exist_ok=exist_ok)
+            self.log_dir.mkdir(parents=True, exist_ok=exist_ok)
 
-        # save updated config file to the checkpoint dir
-        write_json(self.config, self.save_dir / 'config.json')
+            # save updated config file to the checkpoint dir, only local master save file
+            write_json(self.config, self.save_dir / 'config.json')
 
-        # configure logging module
-        setup_logging(self.log_dir)
-        self.log_levels = {
-            0: logging.WARNING,
-            1: logging.INFO,
-            2: logging.DEBUG
-        }
+            # configure logging module, only local master setup logging
+            setup_logging(self.log_dir)
+            self.log_levels = {
+                0: logging.WARNING,
+                1: logging.INFO,
+                2: logging.DEBUG
+            }
 
     @classmethod
     def from_args(cls, args: ArgumentParser, options: collections.namedtuple = ''):
@@ -59,7 +63,7 @@ class ConfigParser:
         Initialize this class from some cli arguments. Used in train, test.
         """
         for opt in options:
-            args.add_argument(*opt.flags, default=None, type=opt.type)
+            args.add_argument(*opt.flags, default=opt.default, type=opt.type, help = opt.help)
         if not isinstance(args, tuple):
             args = args.parse_args()
 
@@ -94,7 +98,7 @@ class ConfigParser:
         """
         module_name = self[name]['type']
         module_args = dict(self[name]['args'])
-        assert all([k not in module_args for k in kwargs]), 'Overwriting kwargs given in config file is not allowed'
+        # assert all([k not in module_args for k in kwargs]), 'Overwriting kwargs given in config file is not allowed'
         module_args.update(kwargs)
         return getattr(module, module_name)(*args, **module_args)
 

@@ -60,7 +60,7 @@ def test_resnet():
 def test_datasets():
     filename = Path(__file__).parent.parent.joinpath('data/data_examples_root/train_samples_list.csv').as_posix()
     dataset = PICKDataset(files_name=filename,
-                          iob_tagging_type='box',
+                          iob_tagging_type='box_level',
                           resized_image_size=(480, 960))
 
     data_loader = DataLoader(dataset, batch_size=3, collate_fn=BatchCollateFn(), num_workers=2)
@@ -85,9 +85,13 @@ def test_model_forward():
                       help='path to latest checkpoint (default: None)')
     args.add_argument('-d', '--device', default='0', type=str,
                       help='indices of GPUs to enable (default: all)')
-    CustomArgs = collections.namedtuple('CustomArgs', 'flags type target')
+    CustomArgs = collections.namedtuple('CustomArgs', 'flags default type target help')
     options = [
-        CustomArgs(['--rk', '--local_rank'], type=int, target='local_rank')
+        CustomArgs(['--local_world_size'], default=1, type=int, target='local_world_size',
+                   help='this is passed in explicitly'),
+        CustomArgs(['--local_rank'], default=0, type=int, target='local_rank',
+                   help='this is automatically passed in via launch.py')
+
     ]
     config = ConfigParser.from_args(args, options)
 
@@ -105,7 +109,7 @@ def test_model_forward():
 
     # filename = Path(__file__).parent.parent.joinpath('data/data_examples_root/train_samples_list.csv').as_posix()
     # dataset = PICKDataset(files_name=filename,
-    #                       iob_tagging_type = 'box',
+    #                       iob_tagging_type = 'box_level',
     #                       resized_image_size = (480, 960))
 
     data_loader = DataLoader(dataset, batch_size=2, collate_fn=BatchCollateFn(), num_workers=2)
@@ -146,7 +150,8 @@ def test_metrics():
 # 2. graph.py GraphLearningLayer line 51 mask = self.compute_static_mask(box_num) instead of compute_dynamic_mask func
 # 3. decoder.py UnionLayer line 142 max_doc_seq_len = doc_seq_len.max()
 # 4. decoder.py BiLSTMLayer pad_packed_sequence line 105, total_length set to max_length
-# 5. utils.py iob_tags_to_union_iob_tags, texts_to_union_texts
+# 5. utils.py iob_tags_to_union_iob_tags, texts_to_union_texts, comment max_seq_length =
+#    documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
 
 if __name__ == '__main__':
     # test_glcn_model()

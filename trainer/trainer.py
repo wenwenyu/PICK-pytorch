@@ -2,11 +2,14 @@
 # @Author: Wenwen Yu
 # @Created Time: 7/12/2020 9:50 PM
 
+import os
 import numpy as np
 from numpy import inf
 
 import torch
-from torchvision.utils import make_grid
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 from utils import inf_loop
 from utils.metrics import MetricTracker, SpanBasedF1MetricTracker
 from logger import TensorboardWriter
@@ -32,10 +35,11 @@ class Trainer:
         :param max_len_step:  controls number of batches(steps) in each epoch.
         '''
         self.config = config
-        self.logger = config.get_logger('trainer', config['trainer']['log_verbosity'])
+        self.local_master = config['local_rank'] == 0
+        self.logger = config.get_logger('trainer', config['trainer']['log_verbosity']) if self.local_master else None
 
         # setup GPU device if available, move model into configured device
-        self.device, self.device_ids = self._prepare_device(config['n_gpu'])
+        self.device, self.device_ids = self._prepare_device(config['local_rank'], config['local_world_size'])
         self.model = model.to(self.device)
 
         self.optimizer = optimizer
@@ -63,18 +67,20 @@ class Trainer:
 
         self.start_epoch = 1
 
-        self.checkpoint_dir = config.save_dir
-
-        # setup visualization writer instance
-        self.writer = TensorboardWriter(config.log_dir, self.logger, cfg_trainer['tensorboard'])
+        if self.local_master:
+            self.checkpoint_dir = config.save_dir
+            # setup visualization writer instance
+            self.writer = TensorboardWriter(config.log_dir, self.logger, cfg_trainer['tensorboard'])
 
         # load checkpoint for resume training
         if config.resume is not None:
             self._resume_checkpoint(config.resume)
 
         # load checkpoint following load to multi-gpu, avoid 'module.' prefix
-        if len(self.device_ids) > 1:
-            self.model = torch.nn.DataParallel(model, device_ids=self.device_ids)
+        if self.config['trainer']['sync_batch_norm']:
+            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
+        self.mode = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
+                        find_unused_parameters=True)
 
         self.data_loader = data_loader
         if max_len_step is None:  # max length of iteration step of every epoch
@@ -99,7 +105,8 @@ class Trainer:
 
         self.gl_loss_lambda = self.config['trainer']['gl_loss_lambda']
 
-        self.train_loss_metrics = MetricTracker('loss', 'gl_loss', 'crf_loss', writer=self.writer)
+        self.train_loss_metrics = MetricTracker('loss', 'gl_loss', 'crf_loss',
+                                                writer=self.writer if self.local_master else None)
         self.valid_f1_metrics = SpanBasedF1MetricTracker(iob_labels_vocab_cls)
 
     def train(self):
@@ -109,6 +116,7 @@ class Trainer:
         not_improved_count = 0
         for epoch in range(self.start_epoch, self.epochs + 1):
 
+            self.data_loader.sampler.set_epoch(epoch)
             result_dict = self._train_epoch(epoch)
 
             # print logged informations to the screen
@@ -118,9 +126,10 @@ class Trainer:
             else:
                 val_res = ''
             # every epoch log information
-            self.logger.info('[Epoch Validation] Epoch:[{}/{}] Total Loss: {:.6f} '
+            self.logger_info('[Epoch Validation] Epoch:[{}/{}] Total Loss: {:.6f} '
                              'GL_Loss: {:.6f} CRF_Loss: {:.6f} \n{}'.
-                             format(epoch, self.epochs, result_dict['loss'], result_dict['gl_loss'] * self.gl_loss_lambda,
+                             format(epoch, self.epochs, result_dict['loss'],
+                                    result_dict['gl_loss'] * self.gl_loss_lambda,
                                     result_dict['crf_loss'], val_res))
 
             # evaluate model performance according to configured metric, check early stop, and
@@ -129,7 +138,7 @@ class Trainer:
             if self.monitor_mode != 'off' and self.do_validation:
                 best, not_improved_count = self._is_best_monitor_metric(best, not_improved_count, val_result_dict)
                 if not_improved_count > self.early_stop:
-                    self.logger.info("Validation performance didn\'t improve for {} epochs. "
+                    self.logger_info("Validation performance didn\'t improve for {} epochs. "
                                      "Training stops.".format(self.early_stop))
                     break
 
@@ -151,7 +160,7 @@ class Trainer:
             improved = (self.monitor_mode == 'min' and val_monitor_metric_res <= self.monitor_best) or \
                        (self.monitor_mode == 'max' and val_monitor_metric_res >= self.monitor_best)
         except KeyError:
-            self.logger.warning("Warning: Metric '{}' is not found. "
+            self.logger_warning("Warning: Metric '{}' is not found. "
                                 "Model performance monitoring is disabled.".format(self.monitor_metric))
             self.monitor_mode = 'off'
             improved = False
@@ -189,6 +198,7 @@ class Trainer:
                     total_loss = torch.sum(crf_loss) + self.gl_loss_lambda * torch.sum(gl_loss)
                     # backward
                     total_loss.backward()
+                    # self.average_gradients(self.model)
                     self.optimizer.step()
             else:
                 self.optimizer.zero_grad()
@@ -200,21 +210,31 @@ class Trainer:
                 total_loss = torch.sum(crf_loss) + self.gl_loss_lambda * torch.sum(gl_loss)
                 # backward
                 total_loss.backward()
+                # self.average_gradients(self.model)
                 self.optimizer.step()
 
-            # calculate average loss
+            # Use a barrier() to make sure that all process have finished forward and backward
+            dist.barrier()
+            #  obtain the sum of all total_loss at all processes
+            dist.all_reduce(total_loss, op=dist.reduce_op.SUM)
+
+            size = dist.get_world_size()
+            gl_loss /= size  # averages gl_loss across the whole world
+            crf_loss /= size  # averages crf_loss across the whole world
+
+            # calculate average loss across the batch size
             avg_gl_loss = torch.mean(gl_loss)
             avg_crf_loss = torch.mean(crf_loss)
             avg_loss = avg_crf_loss + self.gl_loss_lambda * avg_gl_loss
             # update metrics
-            self.writer.set_step((epoch - 1) * self.len_step + step_idx - 1)
+            self.writer.set_step((epoch - 1) * self.len_step + step_idx - 1) if self.local_master else None
             self.train_loss_metrics.update('loss', avg_loss.item())
             self.train_loss_metrics.update('gl_loss', avg_gl_loss.item() * self.gl_loss_lambda)
             self.train_loss_metrics.update('crf_loss', avg_crf_loss.item())
 
             # log messages
             if step_idx % self.log_step == 0:
-                self.logger.info('Train Epoch:[{}/{}] Step:[{}/{}] Total Loss: {:.6f} GL_Loss: {:.6f} CRF_Loss: {:.6f}'.
+                self.logger_info('Train Epoch:[{}/{}] Step:[{}/{}] Total Loss: {:.6f} GL_Loss: {:.6f} CRF_Loss: {:.6f}'.
                                  format(epoch, self.epochs, step_idx, self.len_step,
                                         avg_loss.item(), avg_gl_loss.item() * self.gl_loss_lambda, avg_crf_loss.item()))
                 # self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
@@ -222,7 +242,7 @@ class Trainer:
             # do validation after val_step_interval iteration
             if self.do_validation and step_idx % self.val_step_interval == 0:
                 val_result_dict = self._valid_epoch(epoch)
-                self.logger.info('[Step Validation] Epoch:[{}/{}] Step:[{}/{}]  \n{}'.
+                self.logger_info('[Step Validation] Epoch:[{}/{}] Step:[{}/{}]  \n{}'.
                                  format(epoch, self.epochs, step_idx, self.len_step,
                                         SpanBasedF1MetricTracker.dict2str(val_result_dict)))
 
@@ -252,7 +272,7 @@ class Trainer:
 
     def _valid_epoch(self, epoch):
         '''
-         Validate after training an epoch or regular step
+         Validate after training an epoch or regular step, this is a time-consuming procedure if validation data is big.
         :param epoch: Integer, current training epoch.
         :return: A dict that contains information about validation
         '''
@@ -268,7 +288,7 @@ class Trainer:
                 output = self.model(**input_data_item)
                 logits = output['logits']
                 new_mask = output['new_mask']
-                if len(self.device_ids) > 1:
+                if hasattr(self.model, 'module'):
                     #  List[(List[int], torch.Tensor)] contain the tag indices of the maximum likelihood tag sequence.
                     #  and the score of the viterbi path.
                     best_paths = self.model.module.decoder.crf_layer.viterbi_tags(logits, mask=new_mask,
@@ -280,7 +300,8 @@ class Trainer:
                 for path, score in best_paths:
                     predicted_tags.append(path)
 
-                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + step_idx, 'valid')
+                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + step_idx, 'valid') \
+                    if self.local_master else None
 
                 # calculate and update f1 metrics
                 # (B, N*T, out_dim)
@@ -293,6 +314,7 @@ class Trainer:
                 mask = input_data_item['mask']
                 union_iob_tags = iob_tags_to_union_iob_tags(golden_tags, mask)
 
+                dist.barrier()  #
                 self.valid_f1_metrics.update(predicted_tags_hard_prob.long(), union_iob_tags, new_mask)
 
         # add histogram of model parameters to the tensorboard
@@ -306,26 +328,45 @@ class Trainer:
 
         return f1_result_dict
 
-    def _prepare_device(self, n_gpu_use):
+    def average_gradients(self, model):
         '''
-         setup GPU device if available, move model into configured device
-        :param n_gpu_use:
+        Gradient averaging
+        :param model:
         :return:
         '''
-        n_gpu = torch.cuda.device_count()
-        if n_gpu_use > 0 and n_gpu == 0:
-            self.logger.warning("Warning: There\'s no GPU available on this machine,"
-                                "training will be performed on CPU.")
-            n_gpu_use = 0
-        if n_gpu_use > n_gpu:
-            self.logger.warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
-                                "on this machine.".format(n_gpu_use, n_gpu))
-            n_gpu_use = n_gpu
+        size = float(dist.get_world_size())
+        for param in model.parameters():
+            dist.all_reduce(param.grad.data, op=dist.reduce_op.SUM)
+            param.grad.data /= size
 
-        device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
-        # device = torch.device(f"cuda:{local_rank}" if n_gpu_use > 0 else 'cpu')
-        list_ids = list(range(n_gpu_use))
-        return device, list_ids
+    def logger_info(self, msg):
+        self.logger.info(msg) if self.local_master else None
+
+    def logger_warning(self, msg):
+        self.logger.warning(msg) if self.local_master else None
+
+    def _prepare_device(self, local_rank, local_world_size):
+        '''
+         setup GPU device if available, move model into configured device
+        :param local_rank:
+        :param local_world_size:
+        :return:
+        '''
+        ngpu_per_process = torch.cuda.device_count() // local_world_size
+        device_ids = list(range(local_rank * ngpu_per_process, (local_rank + 1) * ngpu_per_process))
+
+        if torch.cuda.is_available() and local_rank != -1:
+            torch.cuda.set_device(device_ids[0])  # device_ids[0] =local_rank if local_world_size = n_gpu per node
+            device = 'cuda'
+            self.logger_info(
+                f"[Process {os.getpid()}] world_size = {dist.get_world_size()}, "
+                + f"rank = {dist.get_rank()}, n_gpu/process = {ngpu_per_process}, device_ids = {device_ids}"
+            )
+        else:
+            self.logger_warning('Training is using CPU!')
+            device = 'cpu'
+        device = torch.device(device)
+        return device, device_ids
 
     def _save_checkpoint(self, epoch, save_best=False):
         '''
@@ -334,7 +375,11 @@ class Trainer:
         :param save_best: if True, rename the saved checkpoint to 'model_best.pth'
         :return:
         '''
-        if len(self.device_ids) > 1:
+        # only local master process do save model
+        if not self.local_master:
+            return
+
+        if hasattr(self.model, 'module'):
             arch = type(self.model.module).__name__
             state_dict = self.model.module.state_dict()
         else:
@@ -351,11 +396,11 @@ class Trainer:
         if save_best:
             best_path = str(self.checkpoint_dir / 'model_best.pth')
             torch.save(state, best_path)
-            self.logger.info("Saving current best: model_best.pth ...")
+            self.logger_info("Saving current best: model_best.pth ...")
         else:
             filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.pth'.format(epoch))
             torch.save(state, filename)
-            self.logger.info("Saving checkpoint: {} ...".format(filename))
+            self.logger_info("Saving checkpoint: {} ...".format(filename))
 
     def _resume_checkpoint(self, resume_path):
         '''
@@ -364,22 +409,23 @@ class Trainer:
         :return:
         '''
         resume_path = str(resume_path)
-        self.logger.info("Loading checkpoint: {} ...".format(resume_path))
+        self.logger_info("Loading checkpoint: {} ...".format(resume_path))
+        # map_location = {'cuda:%d' % 0: 'cuda:%d' % self.config['local_rank']}
         checkpoint = torch.load(resume_path, map_location=self.device)
         self.start_epoch = checkpoint['epoch'] + 1
         self.monitor_best = checkpoint['monitor_best']
 
         # load architecture params from checkpoint.
         if checkpoint['config']['model_arch'] != self.config['model_arch']:
-            self.logger.warning("Warning: Architecture configuration given in config file is different from that of "
+            self.logger_warning("Warning: Architecture configuration given in config file is different from that of "
                                 "checkpoint. This may yield an exception while state_dict is being loaded.")
         self.model.load_state_dict(checkpoint['state_dict'])
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
         if checkpoint['config']['optimizer']['type'] != self.config['optimizer']['type']:
-            self.logger.warning("Warning: Optimizer type given in config file is different from that of checkpoint. "
+            self.logger_warning("Warning: Optimizer type given in config file is different from that of checkpoint. "
                                 "Optimizer parameters not being resumed.")
         else:
             self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        self.logger.info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))
+        self.logger_info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))

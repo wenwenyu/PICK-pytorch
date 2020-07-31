@@ -49,7 +49,8 @@ class GraphLearningLayer(nn.Module):
 
         # add -1 flag to distance, if node is not exist. to separate normal node distances from not exist node distance.
         if box_num is not None:
-            mask = self.compute_static_mask(box_num)
+            # mask = self.compute_static_mask(box_num)
+            mask = self.compute_dynamic_mask(box_num)
             distance = distance + mask
 
         # (B, N, N)
@@ -104,6 +105,7 @@ class GraphLearningLayer(nn.Module):
 
         return mask.unsqueeze(-1)
 
+    @staticmethod
     def compute_dynamic_mask(box_num: Tensor):
         '''
         compute -1 mask, if node(box) is not exist, the length of mask is calculate by max(box_num),

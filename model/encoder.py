@@ -29,7 +29,7 @@ class Encoder(nn.Module):
                  roi_pooling_mode: str = 'roi_align',
                  roi_pooling_size: Tuple[int, int] = (7, 7)):
         '''
-        convert iamge segments and text segments to node embedding.
+        convert image segments and text segments to node embedding.
         :param char_embedding_dim:
         :param out_dim:
         :param image_feature_dim:
@@ -93,10 +93,10 @@ class Encoder(nn.Module):
         '''
 
         :param images: whole_images, shape is (B, N, H, W, C), where B is batch size, N is the number of segments of
-                the documents, H is hegiht of image, W is width of iamge, C is channel of images (default is 3).
+                the documents, H is height of image, W is width of image, C is channel of images (default is 3).
         :param boxes_coordinate: boxes coordinate, shape is (B, N, 8), where 8 is coordinates (x1, y1, x2, y2, x3, y3, x4, y4)
         :param transcripts: text segments, shape is (B, N, T, D), where T is the max length of transcripts,
-                                D is dimension of medol
+                                D is dimension of model
         :param src_key_padding_mask: text padding mask, shape is (B*N, T), True for padding value.
             if provided, specified padding elements in the key will be ignored by the attention.
             This is an binary mask. When the value is True, the corresponding value on the attention layer of Transformer

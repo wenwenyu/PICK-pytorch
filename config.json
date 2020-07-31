@@ -1,7 +1,10 @@
 {
     "name": "PICK_Default",
     "run_id":"test",
-    "n_gpu": 2,
+
+    "local_world_size":4,
+    "local_rank":-1,
+    "distributed":-1,
 
     "model_arch": {
         "type": "PICKModel",
@@ -127,6 +130,8 @@
         "early_stop": 40,
 
         "anomaly_detection": false,
-        "tensorboard": false
+        "tensorboard": false,
+
+        "sync_batch_norm":true
     }
 }

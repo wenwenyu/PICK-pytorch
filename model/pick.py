@@ -81,7 +81,7 @@ class PICKModel(nn.Module):
         graph_node_mask = graph_node_mask.unsqueeze(-1).expand(B * N, T)  # True for valid node
         # If src key are all be masked (indicting text segments is null), atten_weight will be nan after softmax
         # in self-attention layer of Transformer.
-        # So we do not mask all padded sample. Instead we mask it after Transfomer encoding.
+        # So we do not mask all padded sample. Instead we mask it after Transformer encoding.
         src_key_padding_mask = torch.logical_not(mask.bool()) & graph_node_mask  # True for padding mask position
         return src_key_padding_mask, graph_node_mask
 

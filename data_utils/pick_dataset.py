@@ -140,13 +140,13 @@ class BatchCollateFn(object):
 
         # dynamic calculate max baoxes number of batch,
         # this is suitable to one gpus or multi-nodes multi-gpus trianing mode, due to pytorch distributed training strategy.
-        # max_boxes_num_batch =  max([x.boxes_num for x in batch_list])
-        # max_transcript_len = max([x.transcript_len for x in batch_list])
+        max_boxes_num_batch =  max([x.boxes_num for x in batch_list])
+        max_transcript_len = max([x.transcript_len for x in batch_list])
 
         # fix MAX_BOXES_NUM and MAX_TRANSCRIPT_LEN. this ensures batch has same shape, but lead to waste memory and slow speed..
         # this is suitable to one nodes multi gpus training mode, due to pytorch DataParallel training strategy
-        max_boxes_num_batch = documents.MAX_BOXES_NUM
-        max_transcript_len = documents.MAX_TRANSCRIPT_LEN
+        # max_boxes_num_batch = documents.MAX_BOXES_NUM
+        # max_transcript_len = documents.MAX_TRANSCRIPT_LEN
 
         ### padding every sample with same shape, then construct batch_list samples  ###
 
