@@ -65,7 +65,7 @@ class GraphLearningLayer(nn.Module):
         soft_adj = adj * soft_adj
 
         sum_out = soft_adj.sum(dim=-1, keepdim=True)
-        soft_adj = soft_adj / sum_out + 1e-10
+        soft_adj = soft_adj / (sum_out + 1e-10)
 
         gl_loss = None
         if self.training:
