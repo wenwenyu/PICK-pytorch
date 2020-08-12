@@ -190,13 +190,12 @@ class GCNLayer(nn.Module):
         nn.init.uniform_(self.bias_h, a=0, b=1)
         nn.init.kaiming_uniform_(self.w_node, a=math.sqrt(5))
 
-    def forward(self, x: Tensor, alpha: Tensor, adj: Tensor, box_num: Tensor):
+    def forward(self, x: Tensor, alpha: Tensor, adj: Tensor):
         '''
 
         :param x: nodes set (node embedding), (B, N, in_dim)
         :param alpha: relation embedding, (B, N, N, in_dim)
         :param adj: learned soft adj matrix, (B, N, N)
-        :param box_num: (B, 1)
         :return:
                 x_out: updated node embedding, (B, N, out_dim)
                 alpha: updated relation embedding, (B, N, N, out_dim)
@@ -275,6 +274,6 @@ class GLCN(nn.Module):
         soft_adj, gl_loss = self.gl_layer(x, adj, box_num)
         adj = adj * soft_adj
         for i, gcn_layer in enumerate(self.gcn):
-            x, alpha = gcn_layer(x, alpha, adj, box_num)
+            x, alpha = gcn_layer(x, alpha, adj)
 
         return x, soft_adj, gl_loss
