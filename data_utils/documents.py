@@ -248,7 +248,7 @@ def read_ocr_file_without_box_entity_type(filepath: str):
     return res
 
 
-def sort_box_with_list(data: List[Tuple], left_right_firset=True):
+def sort_box_with_list(data: List[Tuple], left_right_first=False):
     def compare_key(x):
         #  x is (index, points, transcription, type) or (index, points, transcription)
         points = x[1]
@@ -256,10 +256,10 @@ def sort_box_with_list(data: List[Tuple], left_right_firset=True):
                        dtype=np.float32)
         rect = cv2.minAreaRect(box)
         center = rect[0]
-        if left_right_firset:
-            return center[1], center[0]
-        else:
+        if left_right_first:
             return center[0], center[1]
+        else:
+            return center[1], center[0]
 
     data = sorted(data, key=compare_key)
     return data
