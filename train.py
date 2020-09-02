@@ -124,7 +124,7 @@ if __name__ == '__main__':
                       help='indices of GPUs to be available (default: all)')
 
     # custom cli options to modify configuration from default values given in json file.
-    CustomArgs = collections.namedtuple('CustomArgs', 'flags default type target help')
+    CustomArgs = collections.namedtuple('CustomArgs', 'flags default type target help')  # CustomArgs.flags, CustomArgs.default
     options = [
         # CustomArgs(['--lr', '--learning_rate'], default=0.0001, type=float, target='optimizer;args;lr',
         #            help='learning rate (default: 0.0001)'),

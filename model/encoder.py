@@ -94,9 +94,10 @@ class Encoder(nn.Module):
 
         :param images: whole_images, shape is (B, N, H, W, C), where B is batch size, N is the number of segments of
                 the documents, H is height of image, W is width of image, C is channel of images (default is 3).
-        :param boxes_coordinate: boxes coordinate, shape is (B, N, 8), where 8 is coordinates (x1, y1, x2, y2, x3, y3, x4, y4)
+        :param boxes_coordinate: boxes coordinate, shape is (B, N, 8),
+                where 8 is coordinates (x1, y1, x2, y2, x3, y3, x4, y4).
         :param transcripts: text segments, shape is (B, N, T, D), where T is the max length of transcripts,
-                                D is dimension of model
+                                D is dimension of model.
         :param src_key_padding_mask: text padding mask, shape is (B*N, T), True for padding value.
             if provided, specified padding elements in the key will be ignored by the attention.
             This is an binary mask. When the value is True, the corresponding value on the attention layer of Transformer
@@ -111,12 +112,13 @@ class Encoder(nn.Module):
         # (B, 3, H, W)
         _, _, origin_H, origin_W = images.shape
 
-        # (B, C, H/16, W/16)
+        # image embedding: (B, C, H/16, W/16)
         images = self.cnn(images)
         _, C, H, W = images.shape
 
         # generate rois for roi pooling, rois shape is (B, N, 5), 5 means (batch_index, x0, y0, x1, y1)
         rois_batch = torch.zeros(B, N, 5, device=images.device)
+        # Loop on the every image.
         for i in range(B):  # (B, N, 8)
             # (N, 8)
             doc_boxes = boxes_coordinate[i]

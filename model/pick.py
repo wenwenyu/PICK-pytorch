@@ -25,7 +25,8 @@ class PICKModel(nn.Module):
         self.make_model(embedding_kwargs, encoder_kwargs, graph_kwargs, decoder_kwargs)
 
     def make_model(self, embedding_kwargs, encoder_kwargs, graph_kwargs, decoder_kwargs):
-
+        # Given the params of each component, creates components.
+        # embedding_kwargs-> word_emb
         embedding_kwargs['num_embeddings'] = len(keys_vocab_cls)
         self.word_emb = nn.Embedding(**embedding_kwargs)
 

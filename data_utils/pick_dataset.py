@@ -138,9 +138,9 @@ class BatchCollateFn(object):
 
     def __call__(self, batch_list: List[Document]):
 
-        # dynamic calculate max baoxes number of batch,
+        # dynamic calculate max boxes number of batch,
         # this is suitable to one gpus or multi-nodes multi-gpus trianing mode, due to pytorch distributed training strategy.
-        max_boxes_num_batch =  max([x.boxes_num for x in batch_list])
+        max_boxes_num_batch = max([x.boxes_num for x in batch_list])
         max_transcript_len = max([x.transcript_len for x in batch_list])
 
         # fix MAX_BOXES_NUM and MAX_TRANSCRIPT_LEN. this ensures batch has same shape, but lead to waste memory and slow speed..
@@ -201,6 +201,7 @@ class BatchCollateFn(object):
             image_indexs_list = [x.image_index for x in batch_list]
             image_indexs_tensor = torch.tensor(image_indexs_list)
 
+        # Convert the data into dict.
         if self.training:
             batch = dict(whole_image=image_batch_tensor,
                          relation_features=relation_features_batch_tensor,
