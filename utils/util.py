@@ -65,7 +65,7 @@ def iob_index_to_str(tags: List[List[int]]):
 
 
 def text_index_to_str(texts: torch.Tensor, mask: torch.Tensor):
-    # (B, num_boxes * T)
+    # union_texts: (B, num_boxes * T)
     union_texts = texts_to_union_texts(texts, mask)
     B, NT = union_texts.shape
 

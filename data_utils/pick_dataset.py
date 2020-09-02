@@ -201,6 +201,9 @@ class BatchCollateFn(object):
             image_indexs_list = [x.image_index for x in batch_list]
             image_indexs_tensor = torch.tensor(image_indexs_list)
 
+        # For easier debug.
+        filenames = [doc.image_filename for doc in batch_list]
+
         # Convert the data into dict.
         if self.training:
             batch = dict(whole_image=image_batch_tensor,
@@ -209,7 +212,8 @@ class BatchCollateFn(object):
                          text_length=text_length_batch_tensor,
                          boxes_coordinate=boxes_coordinate_batch_tensor,
                          mask=mask_batch_tensor,
-                         iob_tags_label=iob_tags_label_batch_tensor)
+                         iob_tags_label=iob_tags_label_batch_tensor,
+                         filenames=filenames)
         else:
             batch = dict(whole_image=image_batch_tensor,
                          relation_features=relation_features_batch_tensor,
@@ -217,6 +221,7 @@ class BatchCollateFn(object):
                          text_length=text_length_batch_tensor,
                          boxes_coordinate=boxes_coordinate_batch_tensor,
                          mask=mask_batch_tensor,
-                         image_indexs=image_indexs_tensor)
+                         image_indexs=image_indexs_tensor,
+                         filenames=filenames)
 
         return batch

@@ -50,6 +50,10 @@ class Document:
             'iob tagging type {} is not supported'.format(iob_tagging_type)
         self.iob_tagging_type = iob_tagging_type
 
+        # For easier debug:
+        # we will know what we are running on.
+        self.image_filename = image_file.as_posix()
+
         try:
             # read boxes, transcripts, and entity types of boxes in one documents from boxes_and_transcripts file
             # match with regex pattern: index,x1,y1,x2,y2,x3,y3,x4,y4,transcript,type from boxes_and_transcripts tsv file

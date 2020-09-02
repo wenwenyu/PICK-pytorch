@@ -184,7 +184,7 @@ class Trainer:
         for step_idx, input_data_item in enumerate(self.data_loader):
             step_idx += 1
             for key, input_value in input_data_item.items():
-                if input_value is not None:
+                if input_value is not None and isinstance(input_value, torch.Tensor):
                     input_data_item[key] = input_value.to(self.device, non_blocking=True)
             if self.config['trainer']['anomaly_detection']:
                 # This mode will increase the runtime and should only be enabled for debugging
@@ -282,7 +282,7 @@ class Trainer:
         with torch.no_grad():
             for step_idx, input_data_item in enumerate(self.valid_data_loader):
                 for key, input_value in input_data_item.items():
-                    if input_value is not None:
+                    if input_value is not None and isinstance(input_value, torch.Tensor):
                         input_data_item[key] = input_value.to(self.device, non_blocking=True)
 
                 output = self.model(**input_data_item)
