@@ -5,6 +5,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import argparse, sys, os, time
 from typing import List
 
+import cv2
+
 from examples import utils
 
 
@@ -28,51 +30,83 @@ def xyxy_to_box_coord(x0, y0, x1, y1):
     return ','.join(box_coord)
 
 
-def ann_convert(src_filename: str, des_filename: str):
+def ann_convert(src_filename: str, des_filename: str, src_imgname: str):
     """
     Convert raw annotation files to the files with format fitting PICK.
 
     Line of source file: transcripts, x0, y0, x1, y1, R, G, B, font, label
     Line of destination file: line_index, box_coordinates, transcripts, label.
+    src_imgname: the image name of source file.
     """
     assert os.path.isfile(src_filename), f'{src_filename} does not exists!'
     # Read lines from source file.
     with open(src_filename, 'r') as file:
         src_lines = file.readlines()
 
+    assert os.path.isfile(src_imgname), f'{src_imgname} does not exists!'
+
+    # We need the intermediate reuslt.
+    split_token_list = []
+    for line_idx, line in enumerate(src_lines):
+        split_tokens = line.strip().split('\t')
+        if len(split_tokens) == 10:
+            transcripts, x0, y0, x1, y1, _, _, _, _, label = split_tokens
+        else:
+            # We assume the default transcripts is the space.
+            transcripts = ' '
+            x0, y0, x1, y1, _, _, _, _, label = split_tokens
+
+        x0, y0, x1, y1 = adjust_box(src_imgname, x0, y0, x1, y1)
+        split_token_list.append([transcripts, x0, y0, x1, y1, label])
+
     # Write format.
-    des_lines = ''
+    des_lines = []
+    for line_idx, line in enumerate(split_token_list):
+        transcripts, x0, y0, x1, y1, label = line
+        des_lines.append(f'{line_idx},{xyxy_to_box_coord(x0, y0, x1, y1)},{transcripts},{label}\n')
+
     with open(des_filename, 'w') as file:
-        for line_idx, line in enumerate(src_lines):
-            transcripts, x0, y0, x1, y1, _, _, _, _, label = line.strip().split('\t')
-            des_lines += f'{line_idx},{xyxy_to_box_coord(x0, y0, x1, y1)},{transcripts},{label}\n'
-
-        file.write(des_lines)
+        file.writelines(des_lines)
 
 
-def batch_ann_convert(src_dir: str, des_dir: str):
+def adjust_box(img_filename, x0, y0, x1, y1):
     """
-    src_dir contains all source annotation files, des_dir contains all target annotation files.
+    The x0, y0, x1, y1 are normalized. We need to map it back.
     """
-    assert os.path.exists(src_dir), f'{src_dir} does not exists!'
-    if not os.path.exists(des_dir):
-        os.makedirs(des_dir)
+    x0, y0, x1, y1 = [int(i) for i in [x0, y0, x1, y1]]
+    image = cv2.imread(img_filename, 1)
+    h, w, _ = image.shape
 
-    # Convert.
-    for idx, filename in enumerate(os.listdir(src_dir)):
-        if not os.path.isfile(filename) or not filename.endswith('.txt'):
-            continue
+    x0, x1 = x0 / 1000 * w, x1 / 1000 * w
+    y0, y1 = y0 / 1000 * h, y1 / 1000 * h
 
-        try:
-            ann_convert(
-                os.path.join(src_dir, filename),
-                os.path.join(des_dir, filename)
-            )
-        except:
-            print(f'Fail to process {src_dir}!')
+    x0, y0, x1, y1 = [str(i) for i in [x0, y0, x1, y1]]
+    return x0, y0, x1, y1
 
-        if idx % 1000 == 0:
-            print(f'Finish processing {idx} files.')
+
+# def batch_ann_convert(src_dir: str, des_dir: str):
+#     """
+#     src_dir contains all source annotation files, des_dir contains all target annotation files.
+#     """
+#     assert os.path.exists(src_dir), f'{src_dir} does not exists!'
+#     if not os.path.exists(des_dir):
+#         os.makedirs(des_dir)
+#
+#     # Convert.
+#     for idx, filename in enumerate(os.listdir(src_dir)):
+#         if not os.path.isfile(filename) or not filename.endswith('.txt'):
+#             continue
+#
+#         try:
+#             ann_convert(
+#                 os.path.join(src_dir, filename),
+#                 os.path.join(des_dir, filename)
+#             )
+#         except:
+#             print(f'Fail to process {src_dir}!')
+#
+#         if idx % 1000 == 0:
+#             print(f'Finish processing {idx} files.')
 
 
 def export_to_subdir(root_dir: str, dataset_name: str, file_list: List, src_imgs_dir: str, src_raw_ann_dir: str):
@@ -117,7 +151,8 @@ def export_to_subdir(root_dir: str, dataset_name: str, file_list: List, src_imgs
         try:
             ann_convert(
                 ann_filename,
-                os.path.join(ann_folder, ann_basename + '.tsv')
+                os.path.join(ann_folder, ann_basename + '.tsv'),
+                img_filename
             )
             utils.copy_or_move_file(img_filename, img_folder)
 
@@ -133,7 +168,7 @@ def export_to_subdir(root_dir: str, dataset_name: str, file_list: List, src_imgs
 
 def export(des_root_dir: str, idx_files_dir: str, src_imgs_dir: str, src_raw_ann_dir: str):
     """
-    Export the images and folders into train, val and test folders.
+    Export the images and folders into train, dev and test folders.
     The des_root_dir contains `train/`, `dev/`, `test/`.
 
     Under the directory `idx_files_dir`, there are: `500K_all.txt`, `500K_dev.txt`, `500K_test.txt`, `500K_train.txt`.
@@ -144,7 +179,7 @@ def export(des_root_dir: str, idx_files_dir: str, src_imgs_dir: str, src_raw_ann
     utils.mkdir(des_root_dir)
 
     # Export to subdirectories.
-    sub_dirs = ['train', 'val', 'test']
+    sub_dirs = ['train', 'dev', 'test']
     for sub_dir in sub_dirs:
         with open(os.path.join(idx_files_dir, f'500K_{sub_dir}.txt'), 'r') as file:
             file_list = file.readlines()
@@ -161,10 +196,7 @@ def main(args):
         args.src_imgs_dir,
         args.src_raw_ann_dir
     )
-    # batch_ann_convert(
-    #     '/Users/bytedance/projects/layout/DocBank/DocBank_samples/DocBank_samples',
-    #     '/Users/bytedance/Desktop/tmp_test'
-    # )
+
 
 
 if __name__ == "__main__":

@@ -10,9 +10,11 @@ import json
 import random
 import shutil
 import urllib.request
+from typing import Dict
 
 import cv2
 from PIL import Image
+import numpy as np
 
 
 __author__ = "TengQi Ye"
@@ -212,3 +214,48 @@ def split_line_on_comma(line):
     line = line.strip().strip(',')
     tokens = line.split(',')
     return tokens
+
+
+def draw_bboxes_with_ann(src_img_name, ann_filename, des_img_name,
+                         label_to_color: Dict):
+    # ann_filename: entity annotation file.
+
+    assert os.path.exists(src_img_name), f'{src_img_name} does not exists!'
+    image = cv2.imread(src_img_name, cv2.IMREAD_COLOR)
+
+    # Plot polynomials.
+    if not os.path.exists(ann_filename):
+        return
+
+    with open(ann_filename, 'r') as ann_file:
+        lines = ann_file.readlines()
+
+    for idx, line in enumerate(lines):
+        # Process the line.
+        tokens = split_line_on_comma(line)
+        index, label = tokens[0], tokens[-1]
+        label = label.strip()  # Remove spaces in the term.
+        points = np.asarray([int(float(token)) for token in tokens[1:9]])
+        points = np.reshape(points, (-1, 2))
+
+        plot_box_with_label(image, points, f'{index}: {label}', color=label_to_color[label])
+
+    # Save the image.
+    if not cv2.imwrite(des_img_name, image):
+        print(f'Fail to save the {des_img_name}')
+
+
+def plot_box_with_label(image, points, text, color=(0, 0, 0)):
+    # points = [[x1, y1], [x2, y2], ...]
+
+    # Plot polynomials.
+    image = cv2.polylines(image, [points], isClosed=True, color=color, thickness=2)
+
+    # Plot text.
+    xs, ys = zip(*points)
+    x, y = min(xs), min(ys)
+
+    # In the future, the text may exceed the boundary.
+    # https://stackoverflow.com/questions/56660241/how-to-wrap-text-in-opencv-when-i-print-it-on-an-image-and-it-exceeds-the-frame
+    # There is a bug here causing long long lines.
+    cv2.putText(image, text, (x, y), 0, 0.5, color, 2)
