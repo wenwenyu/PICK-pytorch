@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import argparse, sys, os, time
+import threading
 from typing import List
 
 import cv2
@@ -139,31 +140,37 @@ def export_to_subdir(root_dir: str, dataset_name: str, file_list: List, src_imgs
 
     # Copy the images and annotations to the directory.
     for idx, ann_filename in enumerate(file_list):
-        ann_basename = os.path.splitext(os.path.basename(ann_filename))[0]
-        img_filename = os.path.join(src_imgs_dir, f'{ann_basename}_ori.jpg')
-        ann_filename = os.path.join(src_raw_ann_dir, f'{ann_basename}.txt')
-
-        # Check if image or annotation exists.
-        assert os.path.isfile(img_filename), f'{img_filename} does not exists!'
-        assert os.path.isfile(ann_filename), f'{ann_filename} does not exists!'
-
-        # We process the raw annotation and directly save to new location.
-        try:
-            ann_convert(
-                ann_filename,
-                os.path.join(ann_folder, ann_basename + '.tsv'),
-                img_filename
-            )
-            utils.copy_or_move_file(img_filename, img_folder)
-
-        except:
-            print(f'Fail to process {ann_filename}  ...')
+        export_single_example(ann_filename, ann_folder, img_folder, src_imgs_dir, src_raw_ann_dir)
 
         # Logging.
         if idx % 1000 == 0:
             print(f'Finish processing {idx} samples in {dataset_name} ...')
 
     print(f'Finish processing dataset {dataset_name} ...')
+
+
+def export_single_example(ann_filename, ann_folder, img_folder, src_imgs_dir, src_raw_ann_dir):
+    ann_basename = os.path.splitext(os.path.basename(ann_filename))[0]
+    img_filename = os.path.join(src_imgs_dir, f'{ann_basename}_ori.jpg')
+    ann_filename = os.path.join(src_raw_ann_dir, f'{ann_basename}.txt')
+    # Check if image or annotation exists.
+    assert os.path.isfile(img_filename), f'{img_filename} does not exists!'
+    assert os.path.isfile(ann_filename), f'{ann_filename} does not exists!'
+    # We process the raw annotation and directly save to new location.
+    try:
+        ann_convert(
+            ann_filename,
+            os.path.join(ann_folder, ann_basename + '.tsv'),
+            img_filename
+        )
+        # utils.copy_or_move_file(img_filename, img_folder)
+        threading.Thread(
+            target=utils.copy_or_move_file,
+            args=(img_filename, img_folder)
+        )
+
+    except:
+        print(f'Fail to process {ann_filename}  ...')
 
 
 def export(des_root_dir: str, idx_files_dir: str, src_imgs_dir: str, src_raw_ann_dir: str):
@@ -196,7 +203,24 @@ def main(args):
         args.src_imgs_dir,
         args.src_raw_ann_dir
     )
-
+    # root_dir = '/Users/bytedance/Downloads'
+    # des_img_filename = '/Users/bytedance/Downloads/test.jpg'
+    # ann_filename = '/Users/bytedance/Downloads/test.tsv'
+    # src_img_filename = os.path.join(root_dir, '149.tar_1805.11250.gz_QDAC_QADC_5_ori.jpg')
+    # ann_convert(os.path.join(root_dir, '149.tar_1805.11250.gz_QDAC_QADC_5.txt'),
+    #             ann_filename, src_img_filename)
+    #
+    # utils.draw_bboxes_with_ann(src_img_filename, ann_filename, des_img_filename,
+    #                            label_to_color={
+    #                                'paragraph': (0, 0, 255),
+    #                                'caption': (255, 0, 0),
+    #                                'option': (0, 255, 0),
+    #                                'section': (255, 255, 0),
+    #                                'equation': (0, 255, 255),
+    #                                'footer': (255, 0, 255),
+    #                                'reference': (255, 255, 255),
+    #                                'figure': (125, 125, 125)
+    #                            })
 
 
 if __name__ == "__main__":
