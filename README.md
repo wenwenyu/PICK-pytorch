@@ -1,6 +1,5 @@
 # PICK-PyTorch
-## News
-**\*\*\*\*\* Sep 17th, 2020: A training example on big document understanding datasets, 
+**\*\*\*\*\* Updated on Sep 17th, 2020: A training example on the large-scale document understanding dataset, 
 [DocBank](https://doc-analysis.github.io/docbank-page/), 
 are now available. Please refer to [examples/DocBank/README.md](examples/DocBank/README.md) 
 for more details. Thanks [TengQi Ye
