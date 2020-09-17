@@ -49,11 +49,14 @@ def main(args):
     with torch.no_grad():
         for step_idx, input_data_item in tqdm(enumerate(test_data_loader)):
             for key, input_value in input_data_item.items():
-                if input_value is not None:
+                if input_value is not None and isinstance(input_value, torch.Tensor):
                     input_data_item[key] = input_value.to(device)
 
+            # For easier debug.
+            image_names = input_data_item["filenames"]
+
             output = pick_model(**input_data_item)
-            logits = output['logits']
+            logits = output['logits']  # (B, N*T, out_dim)
             new_mask = output['new_mask']
             image_indexs = input_data_item['image_indexs']  # (B,)
             text_segments = input_data_item['text_segments']  # (B, num_boxes, T)

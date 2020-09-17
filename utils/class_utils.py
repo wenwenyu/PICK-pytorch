@@ -16,7 +16,7 @@ class ClassVocab(Vocab):
         '''
         convert key to index(stoi), and get key string by index(itos)
         :param classes: list or str, key string or entity list
-        :param specials: list, speical tokens except <unk> (default: {['<pad>', '<unk>']})
+        :param specials: list, special tokens except <unk> (default: {['<pad>', '<unk>']})
         :param kwargs:
         '''
         cls_list = None
