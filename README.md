@@ -1,4 +1,11 @@
 # PICK-PyTorch
+## News
+**\*\*\*\*\* Sep 17th, 2020: A training example on big document understanding datasets, 
+[DocBank](https://doc-analysis.github.io/docbank-page/), 
+are now available. Please refer to [examples/DocBank/README.md](examples/DocBank/README.md) 
+for more details. Thanks [TengQi Ye
+](https://github.com/tengerye) for this contribution.\*\*\*\*\***
+
 PyTorch reimplementation of ["PICK: Processing Key Information Extraction from Documents using Improved Graph 
 Learning-Convolutional Networks"](https://arxiv.org/abs/2004.07464) (ICPR 2020). This project is different from 
 our original implementation.
