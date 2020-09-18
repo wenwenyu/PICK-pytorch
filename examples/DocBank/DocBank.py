@@ -158,16 +158,16 @@ def export_single_example(ann_filename, ann_folder, img_folder, src_imgs_dir, sr
     assert os.path.isfile(ann_filename), f'{ann_filename} does not exists!'
     # We process the raw annotation and directly save to new location.
     try:
-        ann_convert(
-            ann_filename,
-            os.path.join(ann_folder, ann_basename + '.tsv'),
-            img_filename
-        )
-        # utils.copy_or_move_file(img_filename, img_folder)
+        # ann_convert(
+        #     ann_filename,
+        #     os.path.join(ann_folder, ann_basename + '.tsv'),
+        #     img_filename
+        # )
         threading.Thread(
-            target=utils.copy_or_move_file,
-            args=(img_filename, img_folder)
+            target=ann_convert,
+            args=(os.path.join(ann_folder, ann_basename + '.tsv'), img_filename)
         )
+        utils.copy_or_move_file(img_filename, img_folder)
 
     except:
         print(f'Fail to process {ann_filename}  ...')
