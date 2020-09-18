@@ -214,13 +214,13 @@ class Document:
                 if np.abs(center_i[1] - center_j[1]) is not None else -1  # y_ij
 
             relation_features[i, j, 2] = width_i / (height_i) \
-                if width_i / (height_i) is not None else -1  # w_i/h_i
+                if height_i != 0 and width_i / (height_i) is not None else -1  # w_i/h_i
 
             relation_features[i, j, 3] = height_j / (height_i) \
-                if height_j / (height_i) is not None else -1  # h_j/h_i
+                if height_i != 0 and height_j / (height_i) is not None else -1  # h_j/h_i
 
             relation_features[i, j, 4] = width_j / (height_i) \
-                if width_j / (height_i) is not None else -1  # w_j/h_i
+                if height_i != 0 and width_j / (height_i) is not None else -1  # w_j/h_i
 
             relation_features[i, j, 5] = len(transcript_j) / (len(transcript_i)) \
                 if len(transcript_j) / (len(transcript_i)) is not None else -1  # T_j/T_i
