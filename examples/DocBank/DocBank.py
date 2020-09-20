@@ -132,7 +132,6 @@ def export_to_subdir(root_dir: str, dataset_name: str, file_list: List, src_imgs
     summary_idx_file = os.path.join(root_dir, dataset_name, f'{dataset_name}_samples_list.csv')
     lines = []
     for idx, filename in enumerate(file_list, start=1):
-        filename = filename.split('.')[0]
         lines.append(f'{idx},document,{filename}\n')
 
     with open(summary_idx_file, 'w') as file:
@@ -167,7 +166,10 @@ def export_single_example(ann_filename, ann_folder, img_folder, src_imgs_dir, sr
             target=ann_convert,
             args=(os.path.join(ann_folder, ann_basename + '.tsv'), img_filename)
         )
-        utils.copy_or_move_file(img_filename, img_folder)
+        utils.copy_or_move_file(
+            img_filename,
+            os.path.join(img_folder, f'{ann_basename}.jpg')
+        )
 
     except:
         print(f'Fail to process {ann_filename}  ...')
