@@ -67,36 +67,36 @@ The application will be launched via `launch.py` on a 4 GPU node with one proces
 
 This is equivalent to
 ```bash
-python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=4 \
+python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -c config.json -d 1,2,3,4 --local_world_size 4
 ```
 and is equivalent to specify indices of available GPUs by `CUDA_VISIBLE_DEVICES` instead of `-d` args
 ```bash
-CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=4 \
+CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -c config.json --local_world_size 4
 ```
 Similarly, it can be launched with a single process that spans all 4 GPUs (if node has 4 available GPUs) 
 using (don't recommend):
 ```bash
-CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=1 \
+CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=1 \
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -c config.json --local_world_size 1
 ```
 ### Using Multiple Node
-You can enable multi-node multi-GPU training by setting `nnode` and `node_rank` args of the commandline line on every node.
+You can enable multi-node multi-GPU training by setting `nnodes` and `node_rank` args of the commandline line on every node.
 e.g., 2 nodes 4 gpus run as follows
   
   Node 1, ip: 192.168.0.10, then run on node 1 as follows
   ```
-CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnode=2 --node_rank=0 --nproc_per_node=4 \
+CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnodes=2 --node_rank=0 --nproc_per_node=4 \
 --master_addr=192.168.0.10 --master_port=5555 \
 train.py -c config.json --local_world_size 4  
 ```
    Node 2, ip: 192.168.0.15, then run on node 2 as follows
   ```
-CUDA_VISIBLE_DEVICES=2,4,6,7 python -m torch.distributed.launch --nnode=2 --node_rank=1 --nproc_per_node=4 \
+CUDA_VISIBLE_DEVICES=2,4,6,7 python -m torch.distributed.launch --nnodes=2 --node_rank=1 --nproc_per_node=4 \
 --master_addr=192.168.0.10 --master_port=5555 \
 train.py -c config.json --local_world_size 4  
 ```
@@ -105,7 +105,7 @@ train.py -c config.json --local_world_size 4
 You can resume from a previously saved checkpoint by:
 
   ```
-  python -m torch.distributed.launch --nnode=1 --node_rank=0 --nproc_per_node=4 \
+  python -m torch.distributed.launch --nnodes=1 --node_rank=0 --nproc_per_node=4 \
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -d 1,2,3,4 --local_world_size 4 --resume path/to/checkpoint
   ```
