@@ -7,6 +7,7 @@ import threading
 from typing import List
 
 import cv2
+from PIL import Image
 
 from examples import utils
 
@@ -75,8 +76,9 @@ def adjust_box(img_filename, x0, y0, x1, y1):
     The x0, y0, x1, y1 are normalized. We need to map it back.
     """
     x0, y0, x1, y1 = [int(i) for i in [x0, y0, x1, y1]]
-    image = cv2.imread(img_filename, 1)
-    h, w, _ = image.shape
+    # image = cv2.imread(img_filename, 1)
+    # h, w, _ = image.shape
+    h, w = Image.open(img_filename).size
 
     x0, x1 = x0 / 1000 * w, x1 / 1000 * w
     y0, y1 = y0 / 1000 * h, y1 / 1000 * h
@@ -155,24 +157,18 @@ def export_single_example(ann_filename, ann_folder, img_folder, src_imgs_dir, sr
     # Check if image or annotation exists.
     assert os.path.isfile(img_filename), f'{img_filename} does not exists!'
     assert os.path.isfile(ann_filename), f'{ann_filename} does not exists!'
-    # We process the raw annotation and directly save to new location.
-    try:
-        # ann_convert(
-        #     ann_filename,
-        #     os.path.join(ann_folder, ann_basename + '.tsv'),
-        #     img_filename
-        # )
-        threading.Thread(
-            target=ann_convert,
-            args=(os.path.join(ann_folder, ann_basename + '.tsv'), img_filename)
-        )
-        utils.copy_or_move_file(
-            img_filename,
-            os.path.join(img_folder, f'{ann_basename}.jpg')
-        )
 
-    except:
-        print(f'Fail to process {ann_filename}  ...')
+    # We process the raw annotation and directly save to new location.
+    ann_convert(
+        ann_filename,
+        os.path.join(ann_folder, ann_basename + '.tsv'),
+        img_filename
+    )
+
+    utils.copy_or_move_file(
+        img_filename,
+        os.path.join(img_folder, f'{ann_basename}.jpg')
+    )
 
 
 def export(des_root_dir: str, idx_files_dir: str, src_imgs_dir: str, src_raw_ann_dir: str):
