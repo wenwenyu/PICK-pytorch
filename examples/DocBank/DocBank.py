@@ -5,6 +5,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import argparse, sys, os, time
 import threading
 from typing import List
+from multiprocessing import Pool
+from functools import partial
 
 import cv2
 from PIL import Image
@@ -47,6 +49,10 @@ def ann_convert(src_filename: str, des_filename: str, src_imgname: str):
 
     assert os.path.isfile(src_imgname), f'{src_imgname} does not exists!'
 
+    if len(src_lines) == 0:
+        print(f'Fail to process {src_filename} ...')
+        return False  # Skip the file.
+
     # We need the intermediate reuslt.
     split_token_list = []
     for line_idx, line in enumerate(src_lines):
@@ -70,6 +76,8 @@ def ann_convert(src_filename: str, des_filename: str, src_imgname: str):
     with open(des_filename, 'w') as file:
         file.writelines(des_lines)
 
+    return True
+
 
 def adjust_box(img_filename, x0, y0, x1, y1):
     """
@@ -85,31 +93,6 @@ def adjust_box(img_filename, x0, y0, x1, y1):
 
     x0, y0, x1, y1 = [str(i) for i in [x0, y0, x1, y1]]
     return x0, y0, x1, y1
-
-
-# def batch_ann_convert(src_dir: str, des_dir: str):
-#     """
-#     src_dir contains all source annotation files, des_dir contains all target annotation files.
-#     """
-#     assert os.path.exists(src_dir), f'{src_dir} does not exists!'
-#     if not os.path.exists(des_dir):
-#         os.makedirs(des_dir)
-#
-#     # Convert.
-#     for idx, filename in enumerate(os.listdir(src_dir)):
-#         if not os.path.isfile(filename) or not filename.endswith('.txt'):
-#             continue
-#
-#         try:
-#             ann_convert(
-#                 os.path.join(src_dir, filename),
-#                 os.path.join(des_dir, filename)
-#             )
-#         except:
-#             print(f'Fail to process {src_dir}!')
-#
-#         if idx % 1000 == 0:
-#             print(f'Finish processing {idx} files.')
 
 
 def export_to_subdir(root_dir: str, dataset_name: str, file_list: List, src_imgs_dir: str, src_raw_ann_dir: str):
@@ -129,23 +112,27 @@ def export_to_subdir(root_dir: str, dataset_name: str, file_list: List, src_imgs
     utils.mkdir(img_folder)
     utils.mkdir(ann_folder)
 
+    # Copy the images and annotations to the directory.
+    with Pool(processes=20) as p:
+        for idx, _ in enumerate(p.imap_unordered(
+                partial(export_single_example, ann_folder=ann_folder,
+                        img_folder=img_folder, src_imgs_dir=src_imgs_dir, src_raw_ann_dir=src_raw_ann_dir),
+                file_list
+        )):
+            # Logging.
+            if idx % 1000 == 0:
+                print(f'Finish processing {idx} samples in {dataset_name} ...')
+
     # Write the summary index files.
     # line format: index,document_type,file_name.
     summary_idx_file = os.path.join(root_dir, dataset_name, f'{dataset_name}_samples_list.csv')
     lines = []
-    for idx, filename in enumerate(file_list, start=1):
+    for idx, filename in enumerate(os.listdir(ann_folder), start=1):
+        filename = filename.replace(',', '')
         lines.append(f'{idx},document,{filename}\n')
 
     with open(summary_idx_file, 'w') as file:
         file.writelines(lines)
-
-    # Copy the images and annotations to the directory.
-    for idx, ann_filename in enumerate(file_list):
-        export_single_example(ann_filename, ann_folder, img_folder, src_imgs_dir, src_raw_ann_dir)
-
-        # Logging.
-        if idx % 1000 == 0:
-            print(f'Finish processing {idx} samples in {dataset_name} ...')
 
     print(f'Finish processing dataset {dataset_name} ...')
 
@@ -159,16 +146,18 @@ def export_single_example(ann_filename, ann_folder, img_folder, src_imgs_dir, sr
     assert os.path.isfile(ann_filename), f'{ann_filename} does not exists!'
 
     # We process the raw annotation and directly save to new location.
-    ann_convert(
+    des_basename = ann_basename.replace(',', '')
+    is_success = ann_convert(
         ann_filename,
-        os.path.join(ann_folder, ann_basename + '.tsv'),
+        os.path.join(ann_folder, f'{des_basename}.tsv'),
         img_filename
     )
 
-    utils.copy_or_move_file(
-        img_filename,
-        os.path.join(img_folder, f'{ann_basename}.jpg')
-    )
+    if is_success:
+        utils.copy_or_move_file(
+            img_filename,
+            os.path.join(img_folder, f'{des_basename}.jpg')
+        )
 
 
 def export(des_root_dir: str, idx_files_dir: str, src_imgs_dir: str, src_raw_ann_dir: str):
