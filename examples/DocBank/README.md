@@ -14,7 +14,8 @@ This package provides an example to train PICK on [DocBank](https://doc-analysis
 |       |   6.35%  |  6.49% |  26.73% | 1.60% |  40.31%  | 22.65% |  9.63% | 11.22% |   99.52%  |   11.20%  |  45.16% | 4.90% | 5.43% | 100.00% |
 
 ### Annotation
-There are 11 labels: abstract, author, caption, equation, figure, footer, list, paragraph, reference, section, table, title.
+There are 11 labels: abstract, author, caption, equation, figure, footer, list, paragraph, reference, section, table, title. 
+In the process, we will ignore the blank pages (they are probably wrong annotations).
 
 
 ## Usage
