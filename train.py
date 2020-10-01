@@ -32,7 +32,9 @@ np.random.seed(SEED)
 def main(config: ConfigParser, local_master: bool, logger=None):
     # setup dataset and data_loader instances
     train_dataset = config.init_obj('train_dataset', pick_dataset_module)
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) \
+        if config['distributed'] else None
+
     train_data_loader = config.init_obj('train_data_loader', torch.utils.data.dataloader,
                                         dataset=train_dataset,
                                         sampler=train_sampler,
@@ -79,33 +81,45 @@ def entry_point(config: ConfigParser):
 
     local_world_size = config['local_world_size']
 
-    # check gpu available
-    if torch.cuda.is_available():
-        if torch.cuda.device_count() < local_world_size:
-            raise RuntimeError(f'the number of GPU ({torch.cuda.device_count()}) is less than '
-                               f'the number of processes ({local_world_size}) running on each node')
-        local_master = config['local_rank'] == 0
+    # check distributed environment cfgs
+    if config['distributed']:  # distributed gpu mode
+        # check gpu available
+        if torch.cuda.is_available():
+            if torch.cuda.device_count() < local_world_size:
+                raise RuntimeError(f'the number of GPU ({torch.cuda.device_count()}) is less than '
+                                   f'the number of processes ({local_world_size}) running on each node')
+            local_master = (config['local_rank'] == 0)
+        else:
+            raise RuntimeError('CUDA is not available, Distributed training is not supported.')
+    else:  # one gpu or cpu mode
+        if config['local_world_size'] != 1:
+            raise RuntimeError('local_world_size must set be to 1, if distributed is set to false.')
+        config.update_config('local_rank', 0)
+        local_master = True
+        config.update_config('global_rank', 0)
+
+    logger = config.get_logger('train') if local_master else None
+    if config['distributed']:
+        logger.info('Distributed GPU training model start...') if local_master else None
     else:
-        raise RuntimeError('CUDA is not available, Distributed training is not supported.')
+        logger.info('One GPU or CPU training mode start...') if local_master else None
 
-    if local_master:
-        logger = config.get_logger('train')
-        logger.info('Distributed training start...')
+    if config['distributed']:
+        # these are the parameters used to initialize the process group
+        env_dict = {
+            key: os.environ[key]
+            for key in ('MASTER_ADDR', 'MASTER_PORT', 'RANK', 'WORLD_SIZE')
+        }
+        logger.info(f'[Process {os.getpid()}] Initializing process group with: {env_dict}') if local_master else None
 
-    # these are the parameters used to initialize the process group
-    env_dict = {
-        key: os.environ[key]
-        for key in ('MASTER_ADDR', 'MASTER_PORT', 'RANK', 'WORLD_SIZE')
-    }
-    logger.info(f'[Process {os.getpid()}] Initializing process group with: {env_dict}') if local_master else None
-
-    # init process group
-    dist.init_process_group(backend='nccl', init_method='env://')
-
-    logger.info(
-        f'[Process {os.getpid()}] world_size = {dist.get_world_size()}, '
-        + f'rank = {dist.get_rank()}, backend={dist.get_backend()}'
-    ) if local_master else None
+        # init process group
+        dist.init_process_group(backend='nccl', init_method='env://')
+        config.update_config('global_rank', dist.get_rank())
+        # info distributed training cfg
+        logger.info(
+            f'[Process {os.getpid()}] world_size = {dist.get_world_size()}, '
+            + f'rank = {dist.get_rank()}, backend={dist.get_backend()}'
+        ) if local_master else None
 
     # start train
     main(config, local_master, logger if local_master else None)
@@ -132,6 +146,8 @@ if __name__ == '__main__':
                    help='batch size (default: 2)'),
         # CustomArgs(['--ng', '--n_gpu'], default=2, type=int, target='n_gpu',
         #            help='num of gpu (default: 2)'),
+        CustomArgs(['-dist', '--distributed'], default='true', type=str, target='distributed',
+                   help='run distributed training. (true or false, default: true)'),
         CustomArgs(['--local_world_size'], default=1, type=int, target='local_world_size',
                    help='the number of processes running on each node, this is passed in explicitly '
                         'and is typically either $1$ or the number of GPUs per node. (default: 1)'),
