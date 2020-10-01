@@ -5,7 +5,6 @@
     "distributed":true,
     "local_world_size":4,
     "local_rank":-1,
-    "distributed":-1,
 
     "model_arch": {
         "type": "PICKModel",
