@@ -35,10 +35,11 @@ def main(config: ConfigParser, local_master: bool, logger=None):
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) \
         if config['distributed'] else None
 
+    is_shuffle = False if config['distributed'] else True
     train_data_loader = config.init_obj('train_data_loader', torch.utils.data.dataloader,
                                         dataset=train_dataset,
                                         sampler=train_sampler,
-                                        shuffle=False,
+                                        shuffle=is_shuffle,
                                         collate_fn=BatchCollateFn())
 
     val_dataset = config.init_obj('validation_dataset', pick_dataset_module)
