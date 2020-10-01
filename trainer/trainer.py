@@ -35,7 +35,13 @@ class Trainer:
         :param max_len_step:  controls number of batches(steps) in each epoch.
         '''
         self.config = config
-        self.local_master = config['local_rank'] == 0
+        self.distributed = config['distributed']
+        if self.distributed:
+            self.local_master = (config['local_rank'] == 0)
+            self.global_master = (dist.get_rank() == 0)
+        else:
+            self.local_master = True
+            self.global_master = True
         self.logger = config.get_logger('trainer', config['trainer']['log_verbosity']) if self.local_master else None
 
         # setup GPU device if available, move model into configured device
@@ -77,10 +83,12 @@ class Trainer:
             self._resume_checkpoint(config.resume)
 
         # load checkpoint following load to multi-gpu, avoid 'module.' prefix
-        if self.config['trainer']['sync_batch_norm']:
+        if self.config['trainer']['sync_batch_norm'] and self.distributed:
             self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
-        self.mode = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
-                        find_unused_parameters=True)
+
+        if self.distributed:
+            self.model = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
+                            find_unused_parameters=True)
 
         self.data_loader = data_loader
         if max_len_step is None:  # max length of iteration step of every epoch
@@ -113,10 +121,17 @@ class Trainer:
         """
         Full training logic, including train and validation.
         """
+
+        if self.distributed:
+            dist.barrier()  # Syncing machines before training
+
         not_improved_count = 0
         for epoch in range(self.start_epoch, self.epochs + 1):
 
-            self.data_loader.sampler.set_epoch(epoch)
+            # ensure distribute worker sample different data,
+            # set different random seed by passing epoch to sampler
+            if self.distributed:
+                self.data_loader.sampler.set_epoch(epoch)
             result_dict = self._train_epoch(epoch)
 
             # print logged informations to the screen
