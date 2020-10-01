@@ -79,7 +79,7 @@ class Trainer:
         # load checkpoint following load to multi-gpu, avoid 'module.' prefix
         if self.config['trainer']['sync_batch_norm']:
             self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
-        self.mode = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
+        self.model = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
                         find_unused_parameters=True)
 
         self.data_loader = data_loader
