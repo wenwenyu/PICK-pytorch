@@ -28,6 +28,8 @@ class ConfigParser:
         # load config file and apply modification
         self._config = _update_config(config, modification)
         self.resume = resume
+        # str to bool, from modification or from default json file
+        self.update_config('distributed', (self.config['distributed'] == 'true') or self.config['distributed'] == True)
 
         if self.config['local_rank'] == 0: # only local master process create saved output dir
             # set save_dir where trained model and log will be saved.
@@ -120,6 +122,10 @@ class ConfigParser:
     def __getitem__(self, name):
         """Access items like ordinary dict."""
         return self.config[name]
+
+    def update_config(self, key, value):
+        '''Set config value ike ordinary dict. '''
+        self.config[key] = value
 
     def get_logger(self, name, verbosity=2):
         msg_verbosity = 'verbosity option {} is invalid. Valid options are {}.'.format(verbosity,

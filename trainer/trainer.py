@@ -35,7 +35,13 @@ class Trainer:
         :param max_len_step:  controls number of batches(steps) in each epoch.
         '''
         self.config = config
-        self.local_master = config['local_rank'] == 0
+        self.distributed = config['distributed']
+        if self.distributed:
+            self.local_master = (config['local_rank'] == 0)
+            self.global_master = (dist.get_rank() == 0)
+        else:
+            self.local_master = True
+            self.global_master = True
         self.logger = config.get_logger('trainer', config['trainer']['log_verbosity']) if self.local_master else None
 
         # setup GPU device if available, move model into configured device
@@ -77,10 +83,12 @@ class Trainer:
             self._resume_checkpoint(config.resume)
 
         # load checkpoint following load to multi-gpu, avoid 'module.' prefix
-        if self.config['trainer']['sync_batch_norm']:
+        if self.config['trainer']['sync_batch_norm'] and self.distributed:
             self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
-        self.mode = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
-                        find_unused_parameters=True)
+
+        if self.distributed:
+            self.model = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
+                            find_unused_parameters=True)
 
         self.data_loader = data_loader
         if max_len_step is None:  # max length of iteration step of every epoch
@@ -113,10 +121,17 @@ class Trainer:
         """
         Full training logic, including train and validation.
         """
+
+        if self.distributed:
+            dist.barrier()  # Syncing machines before training
+
         not_improved_count = 0
         for epoch in range(self.start_epoch, self.epochs + 1):
 
-            self.data_loader.sampler.set_epoch(epoch)
+            # ensure distribute worker sample different data,
+            # set different random seed by passing epoch to sampler
+            if self.distributed:
+                self.data_loader.sampler.set_epoch(epoch)
             result_dict = self._train_epoch(epoch)
 
             # print logged informations to the screen
@@ -214,11 +229,14 @@ class Trainer:
                 self.optimizer.step()
 
             # Use a barrier() to make sure that all process have finished forward and backward
-            dist.barrier()
-            #  obtain the sum of all total_loss at all processes
-            dist.all_reduce(total_loss, op=dist.reduce_op.SUM)
+            if self.distributed:
+                dist.barrier()
+                #  obtain the sum of all total_loss at all processes
+                dist.all_reduce(total_loss, op=dist.reduce_op.SUM)
 
-            size = dist.get_world_size()
+                size = dist.get_world_size()
+            else:
+                size = 1
             gl_loss /= size  # averages gl_loss across the whole world
             crf_loss /= size  # averages crf_loss across the whole world
 
@@ -314,7 +332,8 @@ class Trainer:
                 mask = input_data_item['mask']
                 union_iob_tags = iob_tags_to_union_iob_tags(golden_tags, mask)
 
-                dist.barrier()  #
+                if self.distributed:
+                    dist.barrier()  #
                 self.valid_f1_metrics.update(predicted_tags_hard_prob.long(), union_iob_tags, new_mask)
 
         # add histogram of model parameters to the tensorboard
@@ -352,21 +371,44 @@ class Trainer:
         :param local_world_size:
         :return:
         '''
-        ngpu_per_process = torch.cuda.device_count() // local_world_size
-        device_ids = list(range(local_rank * ngpu_per_process, (local_rank + 1) * ngpu_per_process))
+        if self.distributed:
+            ngpu_per_process = torch.cuda.device_count() // local_world_size
+            device_ids = list(range(local_rank * ngpu_per_process, (local_rank + 1) * ngpu_per_process))
 
-        if torch.cuda.is_available() and local_rank != -1:
-            torch.cuda.set_device(device_ids[0])  # device_ids[0] =local_rank if local_world_size = n_gpu per node
-            device = 'cuda'
-            self.logger_info(
-                f"[Process {os.getpid()}] world_size = {dist.get_world_size()}, "
-                + f"rank = {dist.get_rank()}, n_gpu/process = {ngpu_per_process}, device_ids = {device_ids}"
-            )
+            if torch.cuda.is_available() and local_rank != -1:
+                torch.cuda.set_device(device_ids[0])  # device_ids[0] =local_rank if local_world_size = n_gpu per node
+                device = 'cuda'
+                self.logger_info(
+                    f"[Process {os.getpid()}] world_size = {dist.get_world_size()}, "
+                    + f"rank = {dist.get_rank()}, n_gpu/process = {ngpu_per_process}, device_ids = {device_ids}"
+                )
+            else:
+                self.logger_warning('Training will be using CPU!')
+                device = 'cpu'
+            device = torch.device(device)
+            return device, device_ids
         else:
-            self.logger_warning('Training is using CPU!')
-            device = 'cpu'
-        device = torch.device(device)
-        return device, device_ids
+            n_gpu = torch.cuda.device_count()
+            n_gpu_use = local_world_size
+            if n_gpu_use > 0 and n_gpu == 0:
+                self.logger.warning("Warning: There\'s no GPU available on this machine,"
+                                    "training will be performed on CPU.")
+                n_gpu_use = 0
+            if n_gpu_use > n_gpu:
+                self.logger.warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
+                                    "on this machine.".format(n_gpu_use, n_gpu))
+                n_gpu_use = n_gpu
+
+            list_ids = list(range(n_gpu_use))
+            if n_gpu_use > 0:
+                torch.cuda.set_device(list_ids[0])  # only use first available gpu as devices
+                self.logger_warning(f'Training is using GPU {list_ids[0]}!')
+                device = 'cuda'
+            else:
+                self.logger_warning('Training is using CPU!')
+                device = 'cpu'
+            device = torch.device(device)
+            return device, list_ids
 
     def _save_checkpoint(self, epoch, save_best=False):
         '''
