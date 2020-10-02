@@ -20,6 +20,7 @@ our original implementation.
 		* [Distributed training with config files](#distributed-training-with-config-files)
 		* [Using Multiple Node](#using-multiple-node)
 		* [Resuming from checkpoints](#resuming-from-checkpoints)
+		* [Debug mode on one GPU/CPU training with config files](#Debug-mode-on-one-GPU/CPU-training-with-config-files)
 		* [Testing from checkpoints](#testing-from-checkpoints)
 	* [Customization](#customization)
 	    * [Training custom datasets](training-custom-datasets)
@@ -109,7 +110,14 @@ You can resume from a previously saved checkpoint by:
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -d 1,2,3,4 --local_world_size 4 --resume path/to/checkpoint
   ```
-  
+
+### Debug mode on one GPU/CPU training with config files
+This option of training mode can debug code without distributed way. `-dist` must set to `false` to 
+turn off distributed mode. `-d` specify which one gpu will be used.
+```bash
+python train.py -c config.json -d 1 -dist false
+```
+
 ### Testing from checkpoints
 You can test from a previously saved checkpoint by:
 
