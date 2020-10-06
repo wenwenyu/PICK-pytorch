@@ -31,6 +31,7 @@ class PICKDataset(Dataset):
                  keep_ratio: bool = True,
                  ignore_error: bool = False,
                  training: bool = True,
+                 image_ext: str = '.jpg'
                  ):
         '''
         :param entities_list: list with entities
@@ -44,10 +45,12 @@ class PICKDataset(Dataset):
         :param ignore_error:
         :param training: True for train and validation mode, False for test mode. True will also load labels,
         and files_name and entities_file must be set.
+        :param image_ext: image extension, available: `.jpg`, `.png`. By default `.jpg` is used
         '''
         super().__init__()
 
         self._entities_list = entities_list
+        self._image_ext = image_ext
         self.iob_tagging_type = iob_tagging_type
         self.keep_ratio = keep_ratio
         self.ignore_error = ignore_error
@@ -90,13 +93,13 @@ class PICKDataset(Dataset):
             # config file path
             boxes_and_transcripts_file = self.boxes_and_transcripts_folder.joinpath(
                 Path(dataitem['file_name']).stem + '.tsv')
-            image_file = self.images_folder.joinpath(Path(dataitem['file_name']).stem + '.jpg')
+            image_file = self.images_folder.joinpath(Path(dataitem['file_name']).stem + self._image_ext)
             entities_file = self.entities_folder.joinpath(Path(dataitem['file_name']).stem + '.txt')
             # documnets_class = dataitem['document_class']
         else:
             boxes_and_transcripts_file = self.boxes_and_transcripts_folder.joinpath(
                 Path(self.files_list[index]).stem + '.tsv')
-            image_file = self.images_folder.joinpath(Path(self.files_list[index]).stem + '.jpg')
+            image_file = self.images_folder.joinpath(Path(self.files_list[index]).stem + self._image_ext)
 
         if not boxes_and_transcripts_file.exists() or not image_file.exists():
             if self.ignore_error and self.training:
