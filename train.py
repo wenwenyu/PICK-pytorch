@@ -13,6 +13,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 import model.pick as pick_arch_module
 from data_utils import pick_dataset as pick_dataset_module
+from utils.class_utils import set_vocab
 
 from data_utils.pick_dataset import BatchCollateFn
 from parse_config import ConfigParser
@@ -30,6 +31,9 @@ np.random.seed(SEED)
 
 
 def main(config: ConfigParser, local_master: bool, logger=None):
+    # Set vocabs with current entities list
+    set_vocab(config['train_dataset']['args']['entities_list'])
+
     # setup dataset and data_loader instances
     train_dataset = config.init_obj('train_dataset', pick_dataset_module)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) \

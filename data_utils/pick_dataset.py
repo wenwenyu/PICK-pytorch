@@ -16,12 +16,13 @@ import pandas as pd
 
 from . import documents
 from .documents import Document
-from utils.class_utils import keys_vocab_cls, iob_labels_vocab_cls, entities_vocab_cls
+from utils.class_utils import vocab_cls
 
 
 class PICKDataset(Dataset):
 
-    def __init__(self, files_name: str = None,
+    def __init__(self, entities_list: List,
+                 files_name: str = None,
                  boxes_and_transcripts_folder: str = 'boxes_and_transcripts',
                  images_folder: str = 'images',
                  entities_folder: str = 'entities',
@@ -29,10 +30,10 @@ class PICKDataset(Dataset):
                  resized_image_size: Tuple[int, int] = (480, 960),
                  keep_ratio: bool = True,
                  ignore_error: bool = False,
-                 training: bool = True
+                 training: bool = True,
                  ):
         '''
-
+        :param entities_list: list with entities
         :param files_name: containing training and validation samples list file.
         :param boxes_and_transcripts_folder: gt or ocr result containing transcripts, boxes and box entity type (optional).
         :param images_folder: whole images file folder
@@ -46,6 +47,7 @@ class PICKDataset(Dataset):
         '''
         super().__init__()
 
+        self._entities_list = entities_list
         self.iob_tagging_type = iob_tagging_type
         self.keep_ratio = keep_ratio
         self.ignore_error = ignore_error
@@ -108,10 +110,13 @@ class PICKDataset(Dataset):
             # TODO add read and save cache function, to speed up data loaders
 
             if self.training:
-                document = documents.Document(boxes_and_transcripts_file, image_file, self.resized_image_size,
-                                              self.iob_tagging_type, entities_file, training=self.training)
+                document = documents.Document(boxes_and_transcripts_file, image_file, entities_list=self._entities_list,
+                                              resized_image_size=self.resized_image_size,
+                                              iob_tagging_type=self.iob_tagging_type, entities_file=entities_file,
+                                              training=self.training)
             else:
-                document = documents.Document(boxes_and_transcripts_file, image_file, self.resized_image_size,
+                document = documents.Document(boxes_and_transcripts_file, image_file, entities_list=self._entities_list,
+                                              resized_image_size=self.resized_image_size,
                                               image_index=index, training=self.training)
             return document
         except Exception as e:
@@ -170,7 +175,7 @@ class BatchCollateFn(object):
         text_segments_padded_list = [F.pad(torch.LongTensor(x.text_segments[0]),
                                            (0, max_transcript_len - x.transcript_len,
                                             0, max_boxes_num_batch - x.boxes_num),
-                                           value=keys_vocab_cls.stoi['<pad>'])
+                                           value=vocab_cls['keys'].stoi['<pad>'])
                                      for i, x in enumerate(batch_list)]
         text_segments_batch_tensor = torch.stack(text_segments_padded_list, dim=0)
 
@@ -192,7 +197,7 @@ class BatchCollateFn(object):
             iob_tags_label_padded_list = [F.pad(torch.LongTensor(x.iob_tags_label),
                                                 (0, max_transcript_len - x.transcript_len,
                                                  0, max_boxes_num_batch - x.boxes_num),
-                                                value=iob_labels_vocab_cls.stoi['<pad>'])
+                                                value=vocab_cls['iob_labels'].stoi['<pad>'])
                                           for i, x in enumerate(batch_list)]
             iob_tags_label_batch_tensor = torch.stack(iob_tags_label_padded_list, dim=0)
 
