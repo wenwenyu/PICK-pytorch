@@ -1,7 +1,7 @@
 # PICK-PyTorch
 **\*\*\*\*\* Updated on Sep 17th, 2020: A training example on the large-scale document understanding dataset, 
 [DocBank](https://doc-analysis.github.io/docbank-page/), 
-are now available. Please refer to [examples/DocBank/README.md](examples/DocBank/README.md) 
+is now available. Please refer to [examples/DocBank/README.md](examples/DocBank/README.md) 
 for more details. Thanks [TengQi Ye
 ](https://github.com/tengerye) for this contribution.\*\*\*\*\***
 
@@ -130,12 +130,12 @@ You can test from a previously saved checkpoint by:
 ## Customization
 
 ### Training custom datasets
-You can train you own datasets following the steps outlined below.
+You can train your own datasets following the steps outlined below.
 1. Prepare the correct format of files as provided in `data` folder.
    * Please see [data/README.md](data/README.md) an instruction how to prepare the data in required format for PICK.
 2. Modify `train_dataset` and `validation_dataset` args in `config.json` file, including `files_name`,
 `images_folder`, `boxes_and_transcripts_folder`, `entities_folder`, `iob_tagging_type` and `resized_image_size`. 
-3. Modify `entities_list` in train_dataset` and  `validation_dataset` args in `config.json` file according to the entity type of your dataset.
+3. Modify `entities_list` in `train_dataset` and  `validation_dataset` args in `config.json` file according to the entity type of your dataset.
 4. Modify `MAX_BOXES_NUM` and `MAX_TRANSCRIPT_LEN` in `data_tuils/documents.py` file. (Optional)
 5. Modify `image_ext` in `train_dataset` and `validation_dataset` args for image extensions different from `.jpg`. (Optional)
 
