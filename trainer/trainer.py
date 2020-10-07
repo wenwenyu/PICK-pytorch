@@ -13,7 +13,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import inf_loop
 from utils.metrics import MetricTracker, SpanBasedF1MetricTracker
 from logger import TensorboardWriter
-from utils.class_utils import iob_labels_vocab_cls
+from utils.class_utils import vocab_cls
 from utils.util import iob_tags_to_union_iob_tags
 
 
@@ -115,7 +115,7 @@ class Trainer:
 
         self.train_loss_metrics = MetricTracker('loss', 'gl_loss', 'crf_loss',
                                                 writer=self.writer if self.local_master else None)
-        self.valid_f1_metrics = SpanBasedF1MetricTracker(iob_labels_vocab_cls)
+        self.valid_f1_metrics = SpanBasedF1MetricTracker(vocab_cls['iob_labels'])
 
     def train(self):
         """

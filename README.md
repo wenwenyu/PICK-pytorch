@@ -133,10 +133,11 @@ You can test from a previously saved checkpoint by:
 You can train you own datasets following the steps outlined below.
 1. Prepare the correct format of files as provided in `data` folder.
    * Please see [data/README.md](data/README.md) an instruction how to prepare the data in required format for PICK.
-2. Modify `train_dataset` and  `validation_dataset` args in `config.json` file, including `files_name`, 
+2. Modify `train_dataset` and `validation_dataset` args in `config.json` file, including `files_name`,
 `images_folder`, `boxes_and_transcripts_folder`, `entities_folder`, `iob_tagging_type` and `resized_image_size`. 
-3. Modify `Entities_list` in `utils/entities_list.py` file according to the entity type of your dataset.
+3. Modify `entities_list` in train_dataset` and  `validation_dataset` args in `config.json` file according to the entity type of your dataset.
 4. Modify `MAX_BOXES_NUM` and `MAX_TRANSCRIPT_LEN` in `data_tuils/documents.py` file. (Optional)
+5. Modify `image_ext` in `train_dataset` and `validation_dataset` args for image extensions different from `.jpg`. (Optional)
 
 **Note**: The self-build datasets our paper used cannot be shared for patient privacy and proprietary issues.
 
