@@ -58,7 +58,6 @@
         "type": "PICKDataset",
         "args": {
             "entities_list": ["company", "address", "date", "total"],
-            "image_ext": ".jpg",
             "files_name":"data/data_examples_root/train_samples_list.csv",
             "boxes_and_transcripts_folder":"boxes_and_transcripts",
             "images_folder":"images",
@@ -72,7 +71,6 @@
         "type": "PICKDataset",
         "args": {
             "entities_list": ["company", "address", "date", "total"],
-            "image_ext": ".jpg",
             "files_name":"data/data_examples_root/train_samples_list.csv",
             "boxes_and_transcripts_folder":"boxes_and_transcripts",
             "images_folder":"images",
