@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Wenwen Yu
 # @Created Time: 7/9/2020 9:16 PM
-
+import glob
+import os
 from typing import *
 from pathlib import Path
 import warnings
@@ -31,7 +32,6 @@ class PICKDataset(Dataset):
                  keep_ratio: bool = True,
                  ignore_error: bool = False,
                  training: bool = True,
-                 image_ext: str = '.jpg'
                  ):
         '''
         :param entities_list: list with entities
@@ -50,7 +50,8 @@ class PICKDataset(Dataset):
         super().__init__()
 
         self._entities_list = entities_list
-        self._image_ext = image_ext
+        self._image_ext = None
+        self._ann_ext = None
         self.iob_tagging_type = iob_tagging_type
         self.keep_ratio = keep_ratio
         self.ignore_error = ignore_error
@@ -85,21 +86,39 @@ class PICKDataset(Dataset):
     def __len__(self):
         return len(self.files_list)
 
+    def get_image_file(self, basename):
+        """
+        Return the complete name (fill the extension) from the basename.
+        """
+        if self._image_ext is None:
+            filename = list(self.images_folder.glob(f'**/{basename}.*'))[0]
+            self._image_ext = os.path.splitext(filename)[1]
+
+        return self.images_folder.joinpath(basename + self._image_ext)
+
+    def get_ann_file(self, basename):
+        """
+        Return the complete name (fill the extension) from the basename.
+        """
+        if self._ann_ext is None:
+            filename = list(self.boxes_and_transcripts_folder.glob(f'**/{basename}.*'))[0]
+            self._ann_ext = os.path.splitext(filename)[1]
+
+        return self.boxes_and_transcripts_folder.joinpath(basename + self._ann_ext)
+
     @overrides
     def __getitem__(self, index):
 
         if self.training:
             dataitem: pd.Series = self.files_list.iloc[index]
             # config file path
-            boxes_and_transcripts_file = self.boxes_and_transcripts_folder.joinpath(
-                Path(dataitem['file_name']).stem + '.tsv')
-            image_file = self.images_folder.joinpath(Path(dataitem['file_name']).stem + self._image_ext)
+            boxes_and_transcripts_file = self.get_ann_file(Path(dataitem['file_name']).stem)
+            image_file = self.get_image_file(Path(dataitem['file_name']).stem)
             entities_file = self.entities_folder.joinpath(Path(dataitem['file_name']).stem + '.txt')
             # documnets_class = dataitem['document_class']
         else:
-            boxes_and_transcripts_file = self.boxes_and_transcripts_folder.joinpath(
-                Path(self.files_list[index]).stem + '.tsv')
-            image_file = self.images_folder.joinpath(Path(self.files_list[index]).stem + self._image_ext)
+            boxes_and_transcripts_file = self.get_ann_file(Path(self.files_list[index]).stem)
+            image_file = self.get_image_file(Path(self.files_list[index]).stem)
 
         if not boxes_and_transcripts_file.exists() or not image_file.exists():
             if self.ignore_error and self.training:
