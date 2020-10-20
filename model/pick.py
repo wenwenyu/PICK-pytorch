@@ -11,7 +11,7 @@ import numpy as np
 from .encoder import Encoder
 from .graph import GLCN
 from .decoder import Decoder
-from utils.class_utils import vocab_cls
+from utils.class_utils import keys_vocab_cls, iob_labels_vocab_cls
 
 
 class PICKModel(nn.Module):
@@ -27,7 +27,7 @@ class PICKModel(nn.Module):
     def make_model(self, embedding_kwargs, encoder_kwargs, graph_kwargs, decoder_kwargs):
         # Given the params of each component, creates components.
         # embedding_kwargs-> word_emb
-        embedding_kwargs['num_embeddings'] = len(vocab_cls['keys'])
+        embedding_kwargs['num_embeddings'] = len(keys_vocab_cls)
         self.word_emb = nn.Embedding(**embedding_kwargs)
 
         encoder_kwargs['char_embedding_dim'] = embedding_kwargs['embedding_dim']
@@ -42,8 +42,8 @@ class PICKModel(nn.Module):
             decoder_kwargs['mlp_kwargs']['in_dim'] = decoder_kwargs['bilstm_kwargs']['hidden_size'] * 2
         else:
             decoder_kwargs['mlp_kwargs']['in_dim'] = decoder_kwargs['bilstm_kwargs']['hidden_size']
-        decoder_kwargs['mlp_kwargs']['out_dim'] = len(vocab_cls['iob_labels'])
-        decoder_kwargs['crf_kwargs']['num_tags'] = len(vocab_cls['iob_labels'])
+        decoder_kwargs['mlp_kwargs']['out_dim'] = len(iob_labels_vocab_cls)
+        decoder_kwargs['crf_kwargs']['num_tags'] = len(iob_labels_vocab_cls)
         self.decoder = Decoder(**decoder_kwargs)
 
     def _aggregate_avg_pooling(self, input, text_mask):

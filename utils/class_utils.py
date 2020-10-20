@@ -4,9 +4,10 @@
 
 
 from collections import Counter
-from typing import List
 from torchtext.vocab import Vocab
 from pathlib import Path
+
+from . import entities_list
 
 
 class ClassVocab(Vocab):
@@ -50,13 +51,6 @@ def entities2iob_labels(entities: list):
     return tags
 
 
-# Keep references to global vocabs
-vocab_cls = {'keys': None, 'iob_labels': None, 'entities': None}
-
-
-def set_vocab(entities_list: List[str]):
-    """Sets keys, iob_labels and entities Vocabs in `vocab_cls` dict with given list of entities."""
-    global vocab_cls
-    vocab_cls['keys'] = ClassVocab(Path(__file__).parent.joinpath('keys.txt'), specials_first=False)
-    vocab_cls['iob_labels'] = ClassVocab(entities2iob_labels(entities_list), specials_first=False)
-    vocab_cls['entities'] = ClassVocab(entities_list, specials_first=False)
+keys_vocab_cls = ClassVocab(Path(__file__).parent.joinpath('keys.txt'), specials_first=False)
+iob_labels_vocab_cls = ClassVocab(entities2iob_labels(entities_list.Entities_list), specials_first=False)
+entities_vocab_cls = ClassVocab(entities_list.Entities_list, specials_first=False)

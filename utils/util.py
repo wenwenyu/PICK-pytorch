@@ -8,7 +8,7 @@ from collections import OrderedDict
 
 import torch
 
-from .class_utils import vocab_cls
+from .class_utils import keys_vocab_cls, iob_labels_vocab_cls
 from data_utils import documents
 
 
@@ -56,7 +56,7 @@ def iob_index_to_str(tags: List[List[int]]):
     for doc in tags:
         decoded_tags = []
         for tag in doc:
-            s = vocab_cls['iob_labels'].itos[tag]
+            s = iob_labels_vocab_cls.itos[tag]
             if s == '<unk>' or s == '<pad>':
                 s = 'O'
             decoded_tags.append(s)
@@ -73,7 +73,7 @@ def text_index_to_str(texts: torch.Tensor, mask: torch.Tensor):
     for i in range(B):
         decoded_text = []
         for text_index in union_texts[i]:
-            text_str = vocab_cls['keys'].itos[text_index]
+            text_str = keys_vocab_cls.itos[text_index]
             if text_str == '<unk>' or text_str == '<pad>':
                 text_str = 'O'
             decoded_text.append(text_str)
@@ -95,7 +95,7 @@ def texts_to_union_texts(texts, mask):
     mask = mask.reshape(B, N * T)
 
     # union tags as a whole sequence, (B, N*T)
-    union_texts = torch.full_like(texts, vocab_cls['keys']['<pad>'], device=texts.device)
+    union_texts = torch.full_like(texts, keys_vocab_cls['<pad>'], device=texts.device)
 
     max_seq_length = 0
     for i in range(B):
@@ -128,7 +128,7 @@ def iob_tags_to_union_iob_tags(iob_tags, mask):
     mask = mask.reshape(B, N * T)
 
     # union tags as a whole sequence, (B, N*T)
-    union_iob_tags = torch.full_like(iob_tags, vocab_cls['iob_labels']['<pad>'], device=iob_tags.device)
+    union_iob_tags = torch.full_like(iob_tags, iob_labels_vocab_cls['<pad>'], device=iob_tags.device)
 
     max_seq_length = 0
     for i in range(B):
