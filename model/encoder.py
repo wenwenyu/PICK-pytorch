@@ -164,6 +164,6 @@ class Encoder(nn.Module):
         # (B*N, T, D)
         out = out.transpose(0, 1).contiguous()
         out = self.norm(out)
-        out = F.dropout(out, p=self.dropout)
+        out = F.dropout(out, p=self.dropout, training=self.training)
 
         return out
