@@ -193,7 +193,7 @@ By default, values of loss  will be logged. If you need more visualizations, use
 ![example](assets/example.png)
 
 ## TODOs
-- [ ] Dataset cache mechanism to speed up training loop
+- [ ] ~~Dataset cache mechanism to speed up training loop~~
 - [x] Multi-node multi-gpu setup (DistributedDataParallel)
 
 ## Citations
