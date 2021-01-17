@@ -133,9 +133,9 @@ class UnionLayer(nn.Module):
         # combine x and x_gcn firstly
         # (B, N, T, D)
         x_gcn = x_gcn.unsqueeze(2).expand(B, N, T, -1)
-        # (B, max_doc_seq_len, D)
+        # (B, N*T, D)
         x_gcn = x_gcn.reshape(B, N * T, -1)
-        # (B, max_doc_seq_len, D)
+        # (B, N*T, D)
         x = x_gcn + x
 
         # (B, )
