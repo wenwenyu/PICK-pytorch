@@ -110,3 +110,4 @@ saved/
 __MACOSX/
 /data/train_tickets/
 /config_train_ticket.json
+/data/train_tickets.zip

@@ -20,7 +20,7 @@ our original implementation.
 		* [Distributed training with config files](#distributed-training-with-config-files)
 		* [Using Multiple Node](#using-multiple-node)
 		* [Resuming from checkpoints](#resuming-from-checkpoints)
-		* [Debug mode on one GPU/CPU training with config files](#debug-mode-on-one-gpu/cpu-training-with-config-files)
+		* [Debug mode on one GPU/CPU training with config files](#debug-mode-on-one-gpucpu-training-with-config-files)
 		* [Testing from checkpoints](#testing-from-checkpoints)
 	* [Customization](#customization)
 	    * [Training custom datasets](#training-custom-datasets)

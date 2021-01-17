@@ -130,6 +130,14 @@ class UnionLayer(nn.Module):
         x = x.reshape(B, N * T, -1)
         mask = mask.reshape(B, N * T)
 
+        # combine x and x_gcn firstly
+        # (B, N, T, D)
+        x_gcn = x_gcn.unsqueeze(2).expand(B, N, T, -1)
+        # (B, max_doc_seq_len, D)
+        x_gcn = x_gcn.reshape(B, N * T, -1)
+        # (B, max_doc_seq_len, D)
+        x = x_gcn + x
+
         # (B, )
         doc_seq_len = length.sum(dim=-1)
 
@@ -166,13 +174,6 @@ class UnionLayer(nn.Module):
         new_x = new_x[:, :max_doc_seq_len, :]
         # (B, max_doc_seq_len)
         new_mask = new_mask[:, :max_doc_seq_len]
-
-        # (B, N, T, D)
-        x_gcn = x_gcn.unsqueeze(2).expand(B, N, T, -1)
-        # (B, max_doc_seq_len, D)
-        x_gcn = x_gcn.reshape(B, N * T, -1)[:, :max_doc_seq_len, :]
-        # (B, max_doc_seq_len, D)
-        new_x = x_gcn + new_x
 
         if self.training:
             return new_x, new_mask, doc_seq_len, new_tag

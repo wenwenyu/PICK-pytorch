@@ -391,11 +391,11 @@ class Trainer:
             n_gpu = torch.cuda.device_count()
             n_gpu_use = local_world_size
             if n_gpu_use > 0 and n_gpu == 0:
-                self.logger.warning("Warning: There\'s no GPU available on this machine,"
+                self.logger_warning("Warning: There\'s no GPU available on this machine,"
                                     "training will be performed on CPU.")
                 n_gpu_use = 0
             if n_gpu_use > n_gpu:
-                self.logger.warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
+                self.logger_warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
                                     "on this machine.".format(n_gpu_use, n_gpu))
                 n_gpu_use = n_gpu
 
