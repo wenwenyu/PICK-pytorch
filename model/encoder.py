@@ -86,7 +86,8 @@ class Encoder(nn.Module):
         position_embedding = position_embedding.unsqueeze(0).unsqueeze(0)  # 1, 1, max_len, char_embedding_dim
         self.register_buffer('position_embedding', position_embedding)
 
-        self.pe_droput = nn.Dropout(self.dropout)
+        self.pe_dropout = nn.Dropout(self.dropout)
+        self.output_dropout = nn.Dropout(self.dropout)
 
     def forward(self, images: torch.Tensor, boxes_coordinate: torch.Tensor, transcripts: torch.Tensor,
                 src_key_padding_mask: torch.Tensor):
@@ -144,7 +145,7 @@ class Encoder(nn.Module):
         image_segments = image_segments.unsqueeze(dim=1)
 
         # add positional embedding
-        transcripts_segments = self.pe_droput(transcripts + self.position_embedding[:, :, :transcripts.size(2), :])
+        transcripts_segments = self.pe_dropout(transcripts + self.position_embedding[:, :, :transcripts.size(2), :])
         # (B*N, T ,D)
         transcripts_segments = transcripts_segments.reshape(B * N, T, D)
 
@@ -164,6 +165,6 @@ class Encoder(nn.Module):
         # (B*N, T, D)
         out = out.transpose(0, 1).contiguous()
         out = self.norm(out)
-        out = F.dropout(out, p=self.dropout, training=self.training)
+        out = self.output_dropout(out)
 
         return out
