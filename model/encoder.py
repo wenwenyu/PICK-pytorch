@@ -58,15 +58,15 @@ class Encoder(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(transformer_encoder_layer, num_layers=nlayers)
 
         if image_encoder == 'resnet18':
-            self.cnn = resnet.resnet18(output_channels=out_dim)
+            self.cnn = resnet.resnet18(output_channels=image_feature_dim)
         elif image_encoder == 'resnet34':
-            self.cnn = resnet.resnet34(output_channels=out_dim)
+            self.cnn = resnet.resnet34(output_channels=image_feature_dim)
         elif image_encoder == 'resnet50':
-            self.cnn = resnet.resnet50(output_channels=out_dim)
+            self.cnn = resnet.resnet50(output_channels=image_feature_dim)
         elif image_encoder == 'resnet101':
-            self.cnn = resnet.resnet101(output_channels=out_dim)
+            self.cnn = resnet.resnet101(output_channels=image_feature_dim)
         elif image_encoder == 'resnet152':
-            self.cnn = resnet.resnet152(output_channels=out_dim)
+            self.cnn = resnet.resnet152(output_channels=image_feature_dim)
         else:
             raise NotImplementedError()
 
