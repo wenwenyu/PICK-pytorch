@@ -144,7 +144,8 @@ You can train your own datasets following the steps outlined below.
 2. Modify `train_dataset` and  `validation_dataset` args in `config.json` file, including `files_name`, 
 `images_folder`, `boxes_and_transcripts_folder`, `entities_folder`, `iob_tagging_type` and `resized_image_size`. 
 3. Modify `Entities_list` in `utils/entities_list.py` file according to the entity type of your dataset.
-4. Modify `MAX_BOXES_NUM` and `MAX_TRANSCRIPT_LEN` in `data_tuils/documents.py` file. (Optional)
+4. Modify `keys.txt` in `utils/keys.txt` file if needed according to the vocabulary of your dataset.
+5. Modify `MAX_BOXES_NUM` and `MAX_TRANSCRIPT_LEN` in `data_tuils/documents.py` file if needed.
 
 **Note**: The self-build datasets our paper used cannot be shared for patient privacy and proprietary issues.
 
