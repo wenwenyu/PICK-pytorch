@@ -7,4 +7,4 @@ pandas==1.0.5
 allennlp==1.0.0
 torchtext==0.6.0
 tqdm==4.47.0
-torch==1.5.1
+torch==2.2.0
